@@ -15,6 +15,8 @@
 
 | 012 / Mixed categories | 2026-10-22 14:40 export | Unverified | Char Dev + Materials requested | **UNKNOWN**: matching scan log absent | Unknown (181 distinct in export) | **181 Dev / 0 ordinary Materials** | Unverified | Provided ZIP repeats all 223 EXP-011 images; `ChaosGear=0` unresolved OCR; mixed-scan storage and image-log segregation fixes committed |
 
+| 013 / Repeated mixed category | 2026-10-22 15:05 export | Unverified | Char Dev + Materials requested | **FAIL / navigation-invalid**: user observes alternate skipping; phase log missing | Unknown (181 distinct) | **181 Dev / 0 ordinary Materials** | Unverified | Identical 181 keys/order to 012, 158/177 V3.2 reference adjacent transitions advance by +2; three exported 0 quantities. ZIP byte-identical to 012 (223 PNGs + logs). **Do not score OCR.** |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -38,13 +40,15 @@
 
 - Experiment 012 files: `Experiment 12.zip` and `genshinData_GOOD_2026_10_22_14_40.json`. Raw archive has **no 14:40 scan log/images**; its **223/223 PNG files exactly repeat Experiment 011**. The 181-key GOOD export covers only Character Development Items and contains a 0 count for `ChaosGear`. Details: [EXP-012 inconclusive analysis](experiments/EXP-012-mixed-scan-incomplete-evidence.md). The actual settings, phase stop reason and OCR quantity accuracy remain unverified.
 
+- Experiment 013: `Experiment 13.zip`, `genshinData_GOOD_2026_10_22_15_05.json`; full report [EXP-013 navigation-invalid](experiments/EXP-013-navigation-invalid-mixed-scan.md). **Same 181 exported item names/order as 012**, eight quantities changed; three 0 counts. The ZIP has the **same 229 file contents as the Experiment 012 ZIP** (all 223 PNGs old), and no 15:05 scan log. Independently checking against historical V3.2 ordering, 158 of 177 comparable adjacent index jumps skip exactly one item. User again reports Materials category not scanned. OCR voting remains untested against fresh saved crops.
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**012 follow-up — Recover correct 14:40 log bundle.** Locate the `logging` directory for the Visual Studio process that produced the 14:40 export. Verify logged requested-category checkboxes and whether the second Materials phase ran. Only use screenshots captured during that run for OCR accuracy. V4 now separates the internal material-category collections and their screenshot paths. After the evidence is recovered, retest or investigate failures without changing Fast controller timing.
+**014 — Navigation gate, not another OCR trial.** On a clean single-instance V4 run at Normal delay 1, validate one movement per input across only the first 10–12 Character Development Items. Stop if alternation recurs. Once this passes, test transition to Materials separately, verifying new screenshots and correct runtime `./logging` directory. Do not score new OCR voting until complete navigation and fresh captures are verified. Fast controller timing and OCR voting stay unchanged.
 
 ## Updating this ledger
 
