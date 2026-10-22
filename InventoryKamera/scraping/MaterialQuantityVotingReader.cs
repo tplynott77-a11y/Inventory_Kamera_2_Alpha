@@ -8,9 +8,11 @@ using Tesseract;
 namespace InventoryKamera
 {
     /// <summary>
-    /// V3.2's two-view five-scale weighted quantity OCR, using V4 controller crops.
-    /// One colour-filtered inverted binary vote (weight 1) and one clean
-    /// non-inverted grayscale vote (weight 2) are taken at each scale.
+    /// V4 two-view five-scale weighted quantity OCR using controller crops.
+    /// EXP-017's 558 manually labelled 195x44 crops showed filtered/inverted
+    /// OCR substantially outperforms clean grayscale OCR. Give filtered votes
+    /// weight 3 and clean votes weight 1 at each of the five scales.
+    /// This is an experimental improvement, not a complete accuracy fix.
     /// </summary>
     internal sealed class MaterialQuantityVotingReader
     {
@@ -33,7 +35,7 @@ namespace InventoryKamera
                 using (Bitmap scaled = GenshinProcesor.ResizeImage(
                     crop, (int)(crop.Width * scale), (int)(crop.Height * scale)))
                 {
-                    // Branch A: filtered, grayscale, inverted, thresholded.
+                    // Branch A: filtered, grayscale, inverted, thresholded (primary view).
                     using (Bitmap filtered = (Bitmap)scaled.Clone())
                     {
                         var dark = new IntRange(0, 150);
@@ -49,12 +51,12 @@ namespace InventoryKamera
                             preprocessor.SetThreshold(50, ref processed);
                             string raw = ocrService.AnalyzeText(
                                 processed, PageSegMode.SingleWord, numbersOnly: true).Trim();
-                            votes.Record(raw, 1);
+                            votes.Record(raw, 3);
                             Logger.Debug("Material OCR filtered/inverted {0}x: '{1}'", scale, raw);
                         }
                     }
 
-                    // Branch B: clean, non-inverted grayscale, twice the weight.
+                    // Branch B: clean, non-inverted grayscale, used as secondary evidence.
                     var rect = new Rectangle(
                         (int)(scaled.Width * 0.15),
                         (int)(scaled.Height * 0.25),
@@ -65,7 +67,7 @@ namespace InventoryKamera
                     {
                         string raw = ocrService.AnalyzeText(
                             gray, PageSegMode.SingleWord, numbersOnly: true).Trim();
-                        votes.Record(raw, 2);
+                        votes.Record(raw, 1);
                         Logger.Debug("Material OCR clean grayscale {0}x: '{1}'", scale, raw);
                     }
                 }
@@ -77,7 +79,7 @@ namespace InventoryKamera
     }
 
     /// <summary>
-    /// Exact V3.2 voting policy: unique winning weighted vote and at least
+    /// Voting policy: unique winning weighted vote and at least
     /// two distinct OCR readings. Unknown text is rejected, not coerced.
     /// </summary>
     internal sealed class MaterialQuantityVotes
