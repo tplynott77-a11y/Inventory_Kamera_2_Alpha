@@ -42,6 +42,8 @@
 | 022 / live character retest | 2026-10-22 21:15 GOOD | free-roam | Characters only / Normal | **FAIL talents:** all 71 returned zero talents except Tartaglia auto -1; UI talent previews blank; Charlotte C4 + Kirara C5 correct, Traveler still missing | 71 identified | 71 GOOD characters, **0 valid talent profiles** | not audited from ZIP | EXP022 tiny-row two-view OCR gate rejected all three talents unless all reads agreed; passive correction made -1 from zero. 420MB ZIP contents not extracted during this audit. [EXP023 diagnosis](experiments/EXP-023-talent-regression-rollback.md). |
 | 023 / talent OCR recovery code | 2026-10-22 (code) | — | Characters | **PENDING LIVE:** restored EXP021 broad OCR, kept EXP022 constellation fix, early UI previews + forced diagnostics, no negative passive corrections, restricted `gryo` repair and Kachina sanity guard | N/A | N/A | N/A | Source changes + automated tests; next use first 10 Characters only at Normal before full roster. [EXP023 report](experiments/EXP-023-talent-regression-rollback.md). |
 
+| 023 / full character live recovery | 2026-10-22 22:08 GOOD export | free-roam (reported) | Characters-only, Normal | **PARTIAL SUCCESS:** 71 same roster keys as EXP021/022; 63 with nonzero talent sets; 8 zero-sentinel sets | 71 exported | **71 GOOD** | ZIP not inspected | **All 71 constellation exports match EXP022**, including Charlotte C4/Kirara C5; no fresh con regression in GOOD. Kachina auto 11→1 corrected. 8 zero talents: Kinich, Mavuika, Yaoyao, Collei, Chiori, Tighnari, YunJin, Gorou; Cryo Traveler absent. Raw ZIP could not be opened (container unavailable). **NOT IMPORT SAFE**. [GOOD comparison](experiments/EXP-023-live-GOOD-comparison.md). |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -99,7 +101,7 @@ The **initial controller tab verification feature** has passed two artifact-only
 
 ## Next experiment
 
-**023 live character recovery test:** Pull current feature/v4-hybrid, Normal controller delay, 3840x2160, Characters only, screenshots enabled; **untick All and scan ten characters first**. Check that at least one valid nonzero talent profile appears in the UI and GOOD, and that the UI shows a screenshot even on OCR failure. If this passes, perform full-roster test with comparison of constellation labels, Traveler, Kachina, and six missing EXP021 talents. Keep archived EXP020 materials unchanged, and do not import EXP022 GOOD.
+**024 — targeted character verification diagnosis, no blind source changes.** EXP023 live GOOD restored 63/71 valid-looking talent records, all 71 constellation values match EXP022, Charlotte C4 and Kirara C5 are retained. Inspect EXP023 ZIP's logs and screenshots to localise the eight 0/0/0 talent sets and missing Traveler when ZIP access returns. Confirm whether phase identity checks, broad talent OCR, or C3/C5 guard caused each. Recheck Sayu's EXP022-only A0 vs EXP023 A1. Hold off on character GOOD imports; keep material scanner/archive unchanged.
 
 ## Updating this ledger
 
