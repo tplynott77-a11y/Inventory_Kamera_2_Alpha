@@ -25,6 +25,8 @@
 
 | 017 / material category & crop audit | 2026-10-22 16:49–16:55 | Char Dev verified | Char Dev + Materials | **PASS both categories:** 359 Dev; then verified Materials and scanned 199; both stop on end-repeat (not cancelled) | **558 accepted** | **558 GOOD keys** | Dev ~196 s; Materials ~110 s | **FAIL quantity OCR:** full 558-crop manual audit: 431/558 correct (**77.24%**); 127 mismatches (5 uncertain zeros and 122 silent). [EXP-017 report](experiments/EXP-017-material-crop-audit.md). Do not import to live tracker. |
 
+| 018 / filtered-primary vote replay | 2026-10-22 (offline) | No new game run | Dev + Materials vote logs | **OFFLINE RULE VALIDATION ONLY**: 3:1 filtered/gray vs prior 1:2 | Replay 558 crops, 5,580 OCR reads | No new GOOD | No new phase | 3:1 weight replay: **519/558 (93.01%)** correct vs 431/558 (77.24%) old; still 37 silent wrong and 2 zero; unfit live tracker. [EXP-018 report](experiments/EXP-018-filtered-primary-quantity-voting.md) |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -58,13 +60,15 @@
 
 - **EXP 017 audited:** `Experiment 17.zip` and `genshinData_GOOD_2026_10_22_16_55.json` contain current logs, **359 Char Dev** and **199 ordinary Materials** OCR/name scans, both without cancellation; GOOD holds **558 keys**. 558 individual cropped quantity screenshots all reviewed against GOOD: **157/199** ordinary Material counts and **274/359** Char Dev counts agree; **431/558 (77.24%)** overall. 127 wrong (122 silent, 5 zero from uncertainty). Major error examples: `ChaosGear` 3906 instead of crop 356, `RawMeat` 104 instead of 704, and `RainbowdropCrystal` 91 instead of 37. See [EXP-017 detailed audit](experiments/EXP-017-material-crop-audit.md). Historical V3.2 565-material baseline overlaps on 550 names and has 15 older-only (including Mora) and 8 current-only names; not definitive coverage ground truth.
 
+- **EXP 018 offline policy replay**: all 5,580 raw OCR predictions from 558 EXP-017 screenshot crops parsed and recomputed with the original voting policy. All filtered/inverted scales outperform clean grayscale individually; 3:1 filtered/clean weight increases screenshot-matching reconstructed exports from **431 to 519 / 558**, leaving **37 silent errors and two uncertainty zeros**. Committed isolated voter calibration + real-stream regression tests to `feature/v4-hybrid`. See [EXP-018 report](experiments/EXP-018-filtered-primary-quantity-voting.md). This is **not live measured improvement**; OCR remains below release standards. A shape-based independent verifier achieved 520 correct / 0 wrong / 38 uncertain in offline cross-validated combination; not integrated in runtime yet.
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**018 — Quantity OCR accuracy fix, then character-phase work.** Using the 558 fresh crop/reference pairs and weighted OCR debug logs, investigate why digit shapes 5→9, 7→1, 3→9, and dropped digits repeatedly achieve wrong consensus. Implement offline regression validation against actual screenshots and preserve the fixed name-recognition/controller behaviour. Separately test character roster. Defer speed optimization and disabling EXP016 before/after captures until correctness is established. No experimental GOOD in live tracker.
+**018 continuation — exact-digit verification & live validation before characters.** CI-check the isolated 3:1 filtered-primary change, then develop and independently verify a shape-based confirmation step or other robust OCR safeguard against still-silent errors. Do not declare material counts accurate or import any experimental GOOD until new OCR has passed screenshot-based and live tests. Character scanning and performance cleanup remain on hold.
 
 ## Updating this ledger
 
