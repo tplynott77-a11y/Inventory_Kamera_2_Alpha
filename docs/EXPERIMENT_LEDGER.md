@@ -27,6 +27,8 @@
 
 | 018 / filtered-primary vote replay | 2026-10-22 (offline) | No new game run | Dev + Materials vote logs | **OFFLINE RULE VALIDATION ONLY**: 3:1 filtered/gray vs prior 1:2 | Replay 558 crops, 5,580 OCR reads | No new GOOD | No new phase | 3:1 weight replay: **519/558 (93.01%)** correct vs 431/558 (77.24%) old; still 37 silent wrong and 2 zero; unfit live tracker. [EXP-018 report](experiments/EXP-018-filtered-primary-quantity-voting.md) |
 
+| 018 / short live validation | 2026-10-22 17:49–17:49 | Materials → Char Dev verified | Dev + Materials checked; cancelled in Dev | **PASS short Dev sample:** 31 sequential names, 31 quantities consistent with captures/votes, 0 review warnings; not a full GOOD test | 31 Dev | N/A (cancelled) | ~21s actual Dev scanning | 310 OCR readings audited; replay old 1:2 policy would have scored 22 correct, 8 wrong, 1 uncertain vs new 3:1 31/31. Shape guard did not trigger a mismatch on this sample; ordinary Materials untested this run. |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -64,13 +66,15 @@
 
 - **EXP-018 shape verifier implementation:** `MaterialDigitShapeReader.cs` + embedded average digit silhouette templates; production quantity reader now requires **shape/OCR agreement with at least two numeric OCR reads**, otherwise exports zero and logs *REVIEW REQUIRED*. Five-fold held-out-item evaluation on EXP-017 crops: raw shape reading **557/558** correct; combined guard accepts **535 correct / 0 wrong / 23 uncertain** (offline only). It is intentionally limited to 195×44 controller crops and must pass a new live test before trusted use. See [EXP-018 report](experiments/EXP-018-filtered-primary-quantity-voting.md).
 
+- **EXP-018 short live scan**: `Experiment 18.zip` is fresh (17:49 logs and 31 Character Development Item quantity PNGs). The user selected both Dev Items and Materials but cancelled at 17:49:49 before category handoff. Logged 31 selected/accepted material names and 310 OCR reads, including all previously missing item names. **31/31 crop figures agree with filtered OCR and 3:1 reconstructed vote**, no `REVIEW REQUIRED`, `shape corrected`, or failed-parse messages. Old 1:2 rule would have given 22 correct, 8 wrong, 1 uncertain on the same OCR readings; new 3:1 rule gives 31 correct, 0 wrong/uncertain. Because the verifier did not encounter an actual disagreement, this does **not** prove zero future false accepts; no GOOD JSON was exported due to cancellation.
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**018 live validation gate — pending CI.** A conservative digit-shape verifier has been implemented: offline held-out-item 535 correct accepted, zero silently wrong, 23 flagged. When the Windows build/tests pass, run a **short controlled** materials scan with screenshots and independently verify actual crop-vs-GOOD values and that disagreements are visibly flagged. Do not import experimental GOOD or begin characters. Do not claim the new method's full live accuracy from this offline replay.
+**019 — Ordinary Materials short validation, then complete-materials audit.** Experiment 018's 31 Dev Items all matched their screenshot-visible quantities with no review warnings. Test 25–40 **ordinary Materials** next, with screenshot logging and the existing 3:1+shape verifier, then compare each crop with OCR decisions. If both tabs are solid, perform a complete mixed material scan and evaluate any uncertain counts; only after material accuracy is verified move to characters and performance cleanup. Do not import experimental GOOD into the live tracker yet.
 
 ## Updating this ledger
 
