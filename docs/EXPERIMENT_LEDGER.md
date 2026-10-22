@@ -19,6 +19,8 @@
 
 | 015 / 45ms stick pulse video | 2026-10-22 afternoon | Dev Items | Dev Items + Materials selected in UI | **FAIL**: alternating omission persists with Normal 45ms hold / 250ms neutral | Partial / canceled | No matching GOOD | Video ~14.87s | Video shows skipped item detail cards *are visibly displayed*, e.g. Foreign Synapse / Operative's Constancy / Old Operative's Pocket Watch. Could be two moves per pulse OR capture/recognition timing; do not assume one without synchronized pulse log. `ChaosGear` OCR error seen. |
 
+| 016 / instrumented pulse trial | 2026-10-22 (user-supplied ZIP) | Unknown | Char Dev expected | **INCONCLUSIVE**: evidence from current run not included | Unknown | Not provided | Unknown | `Experiment 16.zip` matches EXP 012/013 byte-for-byte (238 entries, last timestamp 14:35); no `navigation_samples` or `V4 NAV EXP016` log lines. Need correct live process `./logging` directory, not another scan yet. |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -46,13 +48,15 @@
 
 - Experiment 015 video: `IMG_2671.mp4` (14.87s phone recording), [video evidence report](experiments/EXP-015-video-evidence-material-navigation.md). Genshin visibly highlights items that EXP 012/013 omitted, showing a *scanner capture-versus-selection mismatch*, not proof that the cursor never visited these cells. Both Dev Items and Materials checked in UI; `ChaosGear` quantity parsing error visible. Distinguish **multiple physical grid advances per command** from **missing/stale OCR sampling** using synchronized per-pulse logging before additional timing adjustments.
 
+- EXP 016 upload: `Experiment 16.zip`. **Exact same ZIP bytes** as EXP 012 and 013. Includes only 223 old Materials quantity PNGs and old NLog files, last modified 2026-10-22 14:35; **no** `Materials/CharacterDevelopmentItems/navigation_samples` images and no instrumented run. Cannot infer pulse movement from this archive. `Program.cs` NLog file targets and `SaveInventoryBitmap` use *relative* `./logging`; the active process's working directory may differ from the folder manually zipped. User should use the running Kamera **error log** link (which opens `logging` relative to the active process) and verify recent screenshot timestamps before zipping. Current-run navigational behavior still unverified.
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**016 — Instrumented single-pulse diagnostic.** Capture exact right-pulse timestamps and card/nameplate frames before and after a *single* 45ms analogue input, with only 5–10 steps on Char Dev Items. Disambiguate “two UI advances per pulse” versus “one UI advance but OCR/selection capture misses every other card”. Do not rerun full inventory or change controller timing/OCR blindly; keep experimental GOOD off live tracker.
+**016 evidence recovery — no new scan yet.** Locate the `./logging` directory for the actual run (open **error log** directly from that same running Kamera app), check for recent `Materials/CharacterDevelopmentItems/navigation_samples/step_01_BEFORE.png` and matching `step_01_AFTER.png`, and ZIP those plus `InventoryKamera.debug.log`. If the captures do not exist, confirm executable/branch/build and screenshot checkbox before retrying the 5–12-step diagnostic. Do not infer navigation result from the stale ZIP.
 
 ## Updating this ledger
 
