@@ -31,6 +31,8 @@
 
 | 019 / full mixed Materials with shape verifier | 2026-10-22 17:57–18:03 | Char Dev, tab OCR verified | Dev + ordinary Materials | **PASS BOTH**: 359 Dev then 199 Materials, cancelled=False | **558 distinct** | **558 GOOD keys** | Dev ~198 s; Materials ~110 s | **534/558 correct (95.70%)** across all visually checked crops; **0 wrong nonzero accepted**; 24 REVIEW_REQUIRED exported 0 despite positive screenshots (11 Materials, 13 Dev); 17 shape-based corrected values. [EXP-019 report](experiments/EXP-019-full-material-quantity-audit.md) |
 
+| 020 / safe shape fallback and touching digits | 2026-10-22 (offline) | No new live run | Replayed Dev + Materials (017 and 019) | **OFFLINE PASS, LIVE UNVERIFIED**: split touching 7s (677), accept high-confidence 3/5/7 OCR confusion only with >=2 compatible OCR readings | 2 × 558 | Predicted **558/558** each | N/A | Retrospective replay only, templates derived from EXP017 and same UI, therefore not an independent 100% guarantee. [EXP-020 report](experiments/EXP-020-safe-material-quantity-recovery.md). Live full materials test required. |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -72,13 +74,15 @@
 
 - **EXP-019 full live forensic audit:** User's `Experiment 19.zip` and 18:02 GOOD include all 558 matched screenshots and logs. **534/558 export quantities match screenshot** and **all 534 accepted nonzero numbers match**; the other **24 are flagged and exported 0**, not genuine zero ownership. 17 shape correction events; 24 REVIEW warnings. Shape predictions of 23 rejected items were actually correct but rejected because fewer than two OCR reads agreed; one rejected `FirmArrowhead` shows **677** with shape wrongly predicting 65 while OCR saw 677. Do not simply trust shape alone. [EXP-019 report](experiments/EXP-019-full-material-quantity-audit.md).
 
+- **EXP-020 integrated fallback / offline evidence:** `MaterialDigitShapeReader.Analyze` splits wide digit runs and reports classification confidence. `MaterialQuantityVotingReader.ConfirmWithFallback` requires either two exact OCR matches or strong digit geometry/margins plus two compatible readings for measured OCR confusions. The 24 rejected EXP019 screenshot counts now recover in offline replay, including `FirmArrowhead=677` after splitting; both EXP017 and EXP019 replay **558/558 screenshot-matching**, zero wrong accepted, zero unresolved. **Not independently validated**: rule was tuned using errors in these same small-display-style corpora, and templates were learned from EXP017. Windows CI and fresh live EXP020 scan must verify. [Detailed EXP-020 report](experiments/EXP-020-safe-material-quantity-recovery.md).
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**020 — Safe recovery of 24 flagged quantities.** EXP-019 all-558 audit confirms 534 accepted correct, no accepted silent errors in this scan, but 24 uncertain zeros. Improve fallback to discriminate confidently segmented digits from OCR disagreements and safeguard against `FirmArrowhead` 677→shape 65 under-segmentation. Validate offline against both EXP-017 and held-out EXP-019 screenshot corpora before asking user for another full run. Continue deferring characters and performance changes. Do not import EXP-019 experimental GOOD into live tracker.
+**020 — Fresh full Materials validation after CI.** Build current `feature/v4-hybrid` and scan both Development Items and ordinary Materials with normal delay and screenshot logging. Compare all actual quantities against current GOOD, scrutinize every `EXP020 high-confidence shape fallback` and any 0 results, measure throughput and full category coverage. Treat 558/558 old-run offline replay as an overfit-prone test, not proof of future accuracy. Characters and speed optimization remain deferred until an independent live material audit passes; never import unverified experimental GOOD.
 
 ## Updating this ledger
 
