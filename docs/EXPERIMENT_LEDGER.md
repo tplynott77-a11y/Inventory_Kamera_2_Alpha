@@ -33,6 +33,8 @@
 
 | 020 / safe shape fallback and touching digits | 2026-10-22 (offline) | No new live run | Replayed Dev + Materials (017 and 019) | **OFFLINE PASS, LIVE UNVERIFIED**: split touching 7s (677), accept high-confidence 3/5/7 OCR confusion only with >=2 compatible OCR readings | 2 × 558 | Predicted **558/558** each | N/A | Retrospective replay only, templates derived from EXP017 and same UI, therefore not an independent 100% guarantee. [EXP-020 report](experiments/EXP-020-safe-material-quantity-recovery.md). Live full materials test required. |
 
+| 020 / FULL live 558-item validation | 2026-10-22 19:54–20:00 | Char Dev verified | Dev + ordinary Materials | **PASS both:** 359 Dev, 199 Materials; normal end, export complete | **558 accepted** | **558 GOOD values** | Dev ~199 s; Materials ~109 s | **558/558 screenshot-consistent (100% observed)**, 0 zeros, 0 wrong values, 0 review/parse warnings. 23 safe fallbacks + 16 shape-based corrections. 542/558 current crop digit masks identical to independently audited EXP019; remaining 16 paired captures checked visually. [EXP-020 report](experiments/EXP-020-safe-material-quantity-recovery.md). |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -76,13 +78,15 @@
 
 - **EXP-020 integrated fallback / offline evidence:** `MaterialDigitShapeReader.Analyze` splits wide digit runs and reports classification confidence. `MaterialQuantityVotingReader.ConfirmWithFallback` requires either two exact OCR matches or strong digit geometry/margins plus two compatible readings for measured OCR confusions. The 24 rejected EXP019 screenshot counts now recover in offline replay, including `FirmArrowhead=677` after splitting; both EXP017 and EXP019 replay **558/558 screenshot-matching**, zero wrong accepted, zero unresolved. **Not independently validated**: rule was tuned using errors in these same small-display-style corpora, and templates were learned from EXP017. Windows CI and fresh live EXP020 scan must verify. [Detailed EXP-020 report](experiments/EXP-020-safe-material-quantity-recovery.md).
 
+- **EXP-020 actual live success:** `Experiment 20.zip` + `genshinData_GOOD_2026_10_22_20_00.json`. 359 Dev + 199 ordinary Materials finished without cancellation; 558 screenshot crops and 558 GOOD keys, **0 zero-valued exports**, **0 warn/error log lines**, 23 high-confidence fallback recoveries and 16 shape corrections. All **558 GOOD quantities match** independently manually labelled EXP019 screenshots; 542 current-vs-prior quantity glyph masks identical, 16 remaining pairs manually checked and same numbers. **100% single-run screenshot consistency, not a universal guarantee**; stable inventory and same 4K UI. All prior 24 rejected quantities recovered including 677 `FirmArrowhead`. This is a material-only milestone; Characters untested.
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**020 — Fresh full Materials validation after CI.** Build current `feature/v4-hybrid` and scan both Development Items and ordinary Materials with normal delay and screenshot logging. Compare all actual quantities against current GOOD, scrutinize every `EXP020 high-confidence shape fallback` and any 0 results, measure throughput and full category coverage. Treat 558/558 old-run offline replay as an overfit-prone test, not proof of future accuracy. Characters and speed optimization remain deferred until an independent live material audit passes; never import unverified experimental GOOD.
+**021 — move forward carefully.** Preserve the EXP020 materials pipeline that produced 558/558 screenshot-consistent quantities. Next focus on optional/debug-only EXP016 navigation screenshots and measured performance improvements (without weakening OCR accuracy); then isolated Characters roster scanning tests. Also consider a changing-inventory or alternate-resolution materials robustness test before public release. **Do not automatically assume the Characters scanner works because Materials passed.** Historical tracker imports should remain deliberate, with backup.
 
 ## Updating this ledger
 
