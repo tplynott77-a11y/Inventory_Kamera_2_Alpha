@@ -585,7 +585,9 @@ namespace InventoryKamera
         {
             var path = "./logging/";
 
-            if (materialPages.Contains(inventoryPage))
+            if (inventoryPage == InventoryPage.CharacterDevelopmentItems)
+                path += "Materials/CharacterDevelopmentItems/";
+            else if (materialPages.Contains(inventoryPage))
                 path += "Materials/";
             else path += inventoryPage.ToString() + "/";
 
