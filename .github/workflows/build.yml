@@ -32,7 +32,7 @@ jobs:
       # Experimental branch package only; the original alpha/stable builds are untouched.
       - name: Publish V4 preview (self-contained Windows x64)
         if: github.ref == 'refs/heads/feature/v4-hybrid'
-        run: dotnet publish InventoryKamera/InventoryKamera.csproj -c Release -r win-x64 --self-contained true --no-restore -o V4_Preview
+        run: dotnet publish InventoryKamera/InventoryKamera.csproj -c Release -r win-x64 --self-contained true -o V4_Preview
 
       - name: Upload V4 preview
         if: github.ref == 'refs/heads/feature/v4-hybrid'
