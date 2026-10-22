@@ -62,13 +62,15 @@
 
 - **EXP 018 offline policy replay**: all 5,580 raw OCR predictions from 558 EXP-017 screenshot crops parsed and recomputed with the original voting policy. All filtered/inverted scales outperform clean grayscale individually; 3:1 filtered/clean weight increases screenshot-matching reconstructed exports from **431 to 519 / 558**, leaving **37 silent errors and two uncertainty zeros**. Committed isolated voter calibration + real-stream regression tests to `feature/v4-hybrid`. See [EXP-018 report](experiments/EXP-018-filtered-primary-quantity-voting.md). This is **not live measured improvement**; OCR remains below release standards. A shape-based independent verifier achieved 520 correct / 0 wrong / 38 uncertain in offline cross-validated combination; not integrated in runtime yet.
 
+- **EXP-018 shape verifier implementation:** `MaterialDigitShapeReader.cs` + embedded average digit silhouette templates; production quantity reader now requires **shape/OCR agreement with at least two numeric OCR reads**, otherwise exports zero and logs *REVIEW REQUIRED*. Five-fold held-out-item evaluation on EXP-017 crops: raw shape reading **557/558** correct; combined guard accepts **535 correct / 0 wrong / 23 uncertain** (offline only). It is intentionally limited to 195×44 controller crops and must pass a new live test before trusted use. See [EXP-018 report](experiments/EXP-018-filtered-primary-quantity-voting.md).
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**018 continuation — exact-digit verification & live validation before characters.** CI-check the isolated 3:1 filtered-primary change, then develop and independently verify a shape-based confirmation step or other robust OCR safeguard against still-silent errors. Do not declare material counts accurate or import any experimental GOOD until new OCR has passed screenshot-based and live tests. Character scanning and performance cleanup remain on hold.
+**018 live validation gate — pending CI.** A conservative digit-shape verifier has been implemented: offline held-out-item 535 correct accepted, zero silently wrong, 23 flagged. When the Windows build/tests pass, run a **short controlled** materials scan with screenshots and independently verify actual crop-vs-GOOD values and that disagreements are visibly flagged. Do not import experimental GOOD or begin characters. Do not claim the new method's full live accuracy from this offline replay.
 
 ## Updating this ledger
 
