@@ -19,17 +19,37 @@ namespace InventoryKamera
         private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
         private readonly IOcrService ocrService;
         private readonly IImagePreprocessor preprocessor;
+        private readonly bool verifyByShape;
 
-        internal MaterialQuantityVotingReader(IOcrService ocrService, IImagePreprocessor preprocessor)
+        internal MaterialQuantityVotingReader(IOcrService ocrService,
+            IImagePreprocessor preprocessor, bool verifyByShape = true)
         {
             this.ocrService = ocrService ?? throw new ArgumentNullException(nameof(ocrService));
             this.preprocessor = preprocessor ?? throw new ArgumentNullException(nameof(preprocessor));
+            this.verifyByShape = verifyByShape;
+        }
+
+        /// <summary>
+        /// Do not silently accept a plausible but unverified weighted vote.
+        /// A number must match an independent digit-shape reading and at
+        /// least two of the ten original OCR reads. Zero means review needed.
+        /// </summary>
+        internal static int ConfirmByShape(int shapeValue, IEnumerable<string> rawOcr)
+        {
+            if (shapeValue <= 0) return 0;
+            int supportingReads = 0;
+            foreach (string raw in rawOcr)
+                if (MaterialQuantityVotes.TryParseQuantity(raw, out int read) &&
+                    read == shapeValue)
+                    supportingReads++;
+            return supportingReads >= 2 ? shapeValue : 0;
         }
 
         internal int Read(Bitmap crop)
         {
             if (crop == null) throw new ArgumentNullException(nameof(crop));
             var votes = new MaterialQuantityVotes();
+            var rawReads = new List<string>(10);
             for (double scale = 1.0; scale <= 3.0; scale += 0.5)
             {
                 using (Bitmap scaled = GenshinProcesor.ResizeImage(
@@ -51,6 +71,7 @@ namespace InventoryKamera
                             preprocessor.SetThreshold(50, ref processed);
                             string raw = ocrService.AnalyzeText(
                                 processed, PageSegMode.SingleWord, numbersOnly: true).Trim();
+                            rawReads.Add(raw);
                             votes.Record(raw, 3);
                             Logger.Debug("Material OCR filtered/inverted {0}x: '{1}'", scale, raw);
                         }
@@ -67,14 +88,29 @@ namespace InventoryKamera
                     {
                         string raw = ocrService.AnalyzeText(
                             gray, PageSegMode.SingleWord, numbersOnly: true).Trim();
+                        rawReads.Add(raw);
                         votes.Record(raw, 1);
                         Logger.Debug("Material OCR clean grayscale {0}x: '{1}'", scale, raw);
                     }
                 }
             }
-            if (votes.TryGetConsensus(out int result)) return result;
-            Logger.Warn("Material OCR uncertain: {0}", votes.Summarize());
-            return 0;
+            bool hasWeightedConsensus = votes.TryGetConsensus(out int weightedResult);
+            if (!verifyByShape)
+            {
+                if (hasWeightedConsensus) return weightedResult;
+                Logger.Warn("Material OCR uncertain: {0}", votes.Summarize());
+                return 0;
+            }
+
+            int shapeValue = MaterialDigitShapeReader.Read(crop);
+            int confirmed = ConfirmByShape(shapeValue, rawReads);
+            if (confirmed == 0)
+                Logger.Warn("Material quantity REVIEW REQUIRED: shape={0}, weighted={1}, votes={2}",
+                    shapeValue, hasWeightedConsensus ? weightedResult : 0, votes.Summarize());
+            else if (confirmed != weightedResult)
+                Logger.Info("Material quantity shape corrected weighted OCR: {0} -> {1}",
+                    hasWeightedConsensus ? weightedResult : 0, confirmed);
+            return confirmed;
         }
     }
 
