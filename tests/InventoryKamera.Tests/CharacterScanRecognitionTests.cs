@@ -8,6 +8,8 @@ namespace InventoryKamera.Tests
     {
         [Theory]
         [InlineData("Traveler", "cryaq", "", "cryo")]
+        [InlineData("Traveler", "gryo", "", "cryo")]
+        [InlineData("Kaeya", "gryo", "", "")]
         [InlineData("Traveler", "cryo", "cryo", "cryo")]
         [InlineData("Kaeya", "cryaq", "", "")]
         [InlineData("Traveler", "hydro", "hydro", "hydro")]
@@ -85,6 +87,16 @@ namespace InventoryKamera.Tests
         public void InvalidOrAmbiguousCombatLevelsAreRejected(string text)
         {
             Assert.False(CharacterScanRecognition.TrySingleTalentLevel(text, out _));
+        }
+
+        [Theory]
+        [InlineData(3, 11, true)]
+        [InlineData(3, 7, false)]
+        [InlineData(4, 11, false)]
+        [InlineData(6, 13, false)]
+        public void ImpossibleLowAscensionAutoIsFlagged(int ascension, int level, bool expected)
+        {
+            Assert.Equal(expected, CharacterScanRecognition.ImpossibleLowAscensionAuto(ascension, level));
         }
 
         [Fact]
