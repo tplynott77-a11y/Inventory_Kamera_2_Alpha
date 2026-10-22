@@ -353,6 +353,23 @@ namespace InventoryKamera
                 "Expected Character Development Items or Materials.");
         }
 
+        /// <summary>
+        /// EXP-014 follow-up: isolate the suspected analogue-stick double-step on
+        /// NORMAL material-grid navigation. A shorter right pulse and longer
+        /// neutral dwell encourage one selection per edge. Preserve the existing
+        /// Fast/Slow timings exactly; those experiments are separate.
+        /// The Normal change still requires live validation in Genshin.
+        /// </summary>
+        internal static (int HoldMs, int SettleMs) MaterialGridStepTiming(double delay)
+        {
+            if (Math.Abs(delay - 1.0) < 0.0001)
+                return (45, 250);
+
+            double multiplier = delay < 1.0 ? delay * delay : delay;
+            return (Math.Max(20, (int)(80 * multiplier)),
+                    Math.Max(20, (int)(100 * multiplier)));
+        }
+
 		internal string ScanMaterials(GameController controller, ref Inventory inventory, string knownCurrentTab = null)
 		{
 			StopScanning = false;
@@ -376,6 +393,7 @@ namespace InventoryKamera
 			}
 
 			int scanned = 0;
+            int observedSlots = 0;
 			int column = 0;
 			int globalRow = 0;
 			int consecutiveEmptyReads = 0;
@@ -412,6 +430,18 @@ namespace InventoryKamera
 				{
 					string name = ScanMaterialName(nameBitmap);
 					Material material = new Material(name, 0);
+                    // First dozen *visited* selections, including unreadable
+                    // names, form a small trace for detecting double-stepping.
+                    if (observedSlots < 12)
+                    {
+                        Logger.Info("V4 NAV sample {0} {1}: assumed row={2}, col={3}, OCR name='{4}'",
+                            observedSlots + 1, inventoryPage, globalRow, column, name ?? "<unreadable>");
+                        if (scanSettings.LogScreenshots)
+                            SaveInventoryBitmap(nameBitmap,
+                                $"navigation_samples/slot_{observedSlots + 1:D2}_r{globalRow}_c{column}.png");
+                    }
+                    observedSlots++;
+
 
 					if (string.IsNullOrEmpty(name))
 					{
@@ -457,8 +487,12 @@ namespace InventoryKamera
 					}
 				}
 
-				controller.MoveStep(GameController.MenuDirection.Right,
-					holdMs: ScaledControllerDelay(80), settleMs: ScaledControllerDelay(100));
+                var timing = MaterialGridStepTiming(Navigation.GetDelay());
+                if (observedSlots <= 12)
+                    Logger.Info("V4 NAV step after slot {0}: Right pulse={1} ms, neutral={2} ms",
+                        observedSlots, timing.HoldMs, timing.SettleMs);
+                controller.MoveStep(GameController.MenuDirection.Right,
+                    holdMs: timing.HoldMs, settleMs: timing.SettleMs);
 
 				column++;
 				if (column >= itemsPerRow)
