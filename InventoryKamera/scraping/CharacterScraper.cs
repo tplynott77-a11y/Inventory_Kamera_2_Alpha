@@ -477,8 +477,13 @@ namespace InventoryKamera
 			if (currentName == character.NameGOOD) return true;
 
 			Logger.Warn("{0} scan expected \"{1}\" but the selected slot reads \"{2}\" -- skipping this character.",
-				phaseLabel, character.NameGOOD, currentName ?? "(unreadable)");
-			return false;
+                phaseLabel, character.NameGOOD, currentName ?? "(unreadable)");
+            // EXP-021: six characters silently acquired zero talents here.
+            // Preserve the actual screen even with normal screenshot logging off.
+            LogCharacterScreenshot(character.NameGOOD, $"diagnostics/{phaseLabel}_verification_failed", NameElementRegion(), force: true);
+            LogCharacterWindow(character.NameGOOD, $"diagnostics/{phaseLabel}_verification_failed", force: true);
+            progressReporter.AddError($"{phaseLabel} header verification failed for {character.NameGOOD}; check diagnostic screenshots.");
+            return false;
 		}
 
 		/// <summary>
@@ -521,9 +526,9 @@ namespace InventoryKamera
 		/// sit side by side instead of overwriting each other. <paramref name="relativeName"/> may
 		/// contain '/' to nest into a subfolder, same as <see cref="LogCharacterScreenshot"/>.
 		/// </summary>
-		private void LogCharacterWindow(string characterName, string relativeName)
-		{
-			if (!scanSettings.LogScreenshots) return;
+		private void LogCharacterWindow(string characterName, string relativeName, bool force = false)
+        {
+            if (!force && !scanSettings.LogScreenshots) return;
 
 			string path = $"./logging/characters/{characterName}/{relativeName}_full_{Navigation.GetWidth()}x{Navigation.GetHeight()}.png";
 			Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -721,7 +726,8 @@ namespace InventoryKamera
 						// "Yumemizuki" -- fixed by carrying the leftover first-line text forward into
 						// the name search instead of discarding it.
 						string namePart1 = "";
-						if (!split[0].Contains(" "))
+                        string rawElementToken = split[0].Trim().Split(' ')[0];
+                        if (!split[0].Contains(" "))
 						{
 							element = GenshinProcesor.FindElementByName(split[0].Trim());
 						}
@@ -736,8 +742,15 @@ namespace InventoryKamera
 						// string after /. Long name characters might search by their last name only
 						// but it'll still work in the non-wrapped case (namePart1 stays empty).
 						name = GenshinProcesor.FindClosestCharacterName(Regex.Replace(namePart1 + split[1], @"[\W]", string.Empty));
-
-						if (!GenshinProcesor.CharacterMatchesElement(name, element)) { name = ""; element = ""; }
+                        // Constrained EXP-021 correction: only an identified Traveler
+                        // may map the observed element token "cryaq" back to Cryo.
+                        element = CharacterScanRecognition.RepairTravelerElement(name, rawElementToken, element);
+                        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(element) ||
+                            !GenshinProcesor.CharacterMatchesElement(name, element))
+                        {
+                            name = "";
+                            element = "";
+                        }
                     }
 					n.Dispose();
 
@@ -901,26 +914,46 @@ namespace InventoryKamera
 		/// <see cref="ScanConstellations"/> and <see cref="ScanConstellationsGreedy"/>.
 		/// </summary>
 		private bool ReadConstellationActivated(Rectangle activatedRegion)
-		{
-			for (int readAttempt = 0; readAttempt < 3; readAttempt++)
-			{
-				if (readAttempt > 0) Navigation.SystemWait(200f);
+        {
+            for (int readAttempt = 0; readAttempt < 3; readAttempt++)
+            {
+                if (readAttempt > 0) Navigation.SystemWait(200f);
 
-				Bitmap bm = Navigation.CaptureRegion(activatedRegion);
-				GenshinProcesor.SetGamma(0.2, 0.2, 0.2, ref bm);
-				imagePreprocessor.SetInvert(ref bm);
-				Bitmap n = imagePreprocessor.ConvertToGrayscale(bm);
+                using (Bitmap screenshot = Navigation.CaptureRegion(activatedRegion))
+                {
+                    // EXP-022: isolate the golden label from bright and animated
+                    // backgrounds. Charlotte C4 and Kirara C5 are known regressions.
+                    using (Bitmap isolated = CharacterScanRecognition.IsolateGoldConstellationText(screenshot))
+                    using (Bitmap enlarged = GenshinProcesor.ResizeImage(
+                        isolated, isolated.Width * 3, isolated.Height * 3))
+                    {
+                        string goldText = ocrService.AnalyzeText(enlarged,
+                            Tesseract.PageSegMode.SingleLine).Trim();
+                        Logger.Debug("Constellation gold-isolated OCR attempt {0}: '{1}'",
+                            readAttempt + 1, goldText);
+                        if (CharacterScanRecognition.SaysActivated(goldText)) return true;
+                    }
 
-				string text = ocrService.AnalyzeText(n, Tesseract.PageSegMode.SingleBlock).Trim();
-				bool activated = text.ToLower().Contains("activated");
-
-				n.Dispose();
-				bm.Dispose();
-
-				if (activated) return true;
-			}
-			return false;
-		}
+                    // Keep the older gamma-based algorithm as a secondary view.
+                    Bitmap legacy = (Bitmap)screenshot.Clone();
+                    try
+                    {
+                        GenshinProcesor.SetGamma(0.2, 0.2, 0.2, ref legacy);
+                        imagePreprocessor.SetInvert(ref legacy);
+                        using (Bitmap gray = imagePreprocessor.ConvertToGrayscale(legacy))
+                        {
+                            string legacyText = ocrService.AnalyzeText(gray,
+                                Tesseract.PageSegMode.SingleBlock).Trim();
+                            Logger.Debug("Constellation gamma OCR attempt {0}: '{1}'",
+                                readAttempt + 1, legacyText);
+                            if (CharacterScanRecognition.SaysActivated(legacyText)) return true;
+                        }
+                    }
+                    finally { legacy.Dispose(); }
+                }
+            }
+            return false;
+        }
 
 		/// <summary>
 		/// Greedy variant of <see cref="ScanConstellations"/>: instead of walking C1 to
