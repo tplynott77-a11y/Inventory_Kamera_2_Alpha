@@ -21,6 +21,8 @@
 
 | 016 / instrumented pulse trial | 2026-10-22 (user-supplied ZIP) | Unknown | Char Dev expected | **INCONCLUSIVE**: evidence from current run not included | Unknown | Not provided | Unknown | `Experiment 16.zip` matches EXP 012/013 byte-for-byte (238 entries, last timestamp 14:35); no `navigation_samples` or `V4 NAV EXP016` log lines. Need correct live process `./logging` directory, not another scan yet. |
 
+| 016 / actual paired screenshots | 2026-10-22 16:26–16:27 | Char Dev Items | Dev Items + Materials UI enabled | **PASS navigation**: 12/12 commands exactly one visible grid step; **FAIL name OCR**: 5 of first 12 recognized as empty despite legible crops | 12 instrumented selections; user canceled after 23 accepted names | N/A (canceled) | 16:26:48–16:27:14 | ROOT CAUSE found: pooled Tesseract digit-only whitelist persists into later item-name reads; repaired in `OcrService.cs` with regression test. See [EXP-016 report](experiments/EXP-016-diagnosis-and-ocr-whitelist-fix.md). |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -50,13 +52,15 @@
 
 - EXP 016 upload: `Experiment 16.zip`. **Exact same ZIP bytes** as EXP 012 and 013. Includes only 223 old Materials quantity PNGs and old NLog files, last modified 2026-10-22 14:35; **no** `Materials/CharacterDevelopmentItems/navigation_samples` images and no instrumented run. Cannot infer pulse movement from this archive. `Program.cs` NLog file targets and `SaveInventoryBitmap` use *relative* `./logging`; the active process's working directory may differ from the folder manually zipped. User should use the running Kamera **error log** link (which opens `logging` relative to the active process) and verify recent screenshot timestamps before zipping. Current-run navigational behavior still unverified.
 
+- **EXP 016 actual evidence recovered**: `Experiment 16 actual.zip` contains 12 BEFORE/AFTER full-window pairs, 12 original OCR name crops, and the 16:26 diagnostic log. **12/12 movements selected exactly one adjacent item**, including row wrap. OCR name results empty for **Black Crystal Horn, Heavy Horn, Dead Ley Line Leaves, Chaos Core, Chaos Device** (slots 3, 5, 7, 9, 11), while nameplate images are legible. Source inspection identifies **persistent `tessedit_char_whitelist=0123456789`** set by quantity reads in `OcrService.AnalyzeTextWithConfidence` on reusable pooled Tesseract engines; non-digit reads never cleared it. Reset per OCR call; add one-engine regression test. [Detailed root-cause report](experiments/EXP-016-diagnosis-and-ocr-whitelist-fix.md). Original EXP-016 ZIP from prior ledger entry was stale but superseded by actual ZIP.
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**016 evidence recovery — no new scan yet.** Locate the `./logging` directory for the actual run (open **error log** directly from that same running Kamera app), check for recent `Materials/CharacterDevelopmentItems/navigation_samples/step_01_BEFORE.png` and matching `step_01_AFTER.png`, and ZIP those plus `InventoryKamera.debug.log`. If the captures do not exist, confirm executable/branch/build and screenshot checkbox before retrying the 5–12-step diagnostic. Do not infer navigation result from the stale ZIP.
+**017 — Verify pooled OCR state reset.** After CI passes and the updated branch is rebuilt, run Dev Items with screenshot logging. Confirm all first twelve selected items yield non-empty correct names, especially slots 3/5/7/9/11, and verify a row boundary. If that passes, allow the category to complete and verify automatic handoff to regular Materials. Do not alter controller timing without a new one-step failure, and do not import experimental exports into the live tracker.
 
 ## Updating this ledger
 
