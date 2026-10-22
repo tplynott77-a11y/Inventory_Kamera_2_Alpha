@@ -29,6 +29,8 @@
 
 | 018 / short live validation | 2026-10-22 17:49–17:49 | Materials → Char Dev verified | Dev + Materials checked; cancelled in Dev | **PASS short Dev sample:** 31 sequential names, 31 quantities consistent with captures/votes, 0 review warnings; not a full GOOD test | 31 Dev | N/A (cancelled) | ~21s actual Dev scanning | 310 OCR readings audited; replay old 1:2 policy would have scored 22 correct, 8 wrong, 1 uncertain vs new 3:1 31/31. Shape guard did not trigger a mismatch on this sample; ordinary Materials untested this run. |
 
+| 019 / full mixed Materials with shape verifier | 2026-10-22 17:57–18:03 | Char Dev, tab OCR verified | Dev + ordinary Materials | **PASS BOTH**: 359 Dev then 199 Materials, cancelled=False | **558 distinct** | **558 GOOD keys** | Dev ~198 s; Materials ~110 s | **534/558 correct (95.70%)** across all visually checked crops; **0 wrong nonzero accepted**; 24 REVIEW_REQUIRED exported 0 despite positive screenshots (11 Materials, 13 Dev); 17 shape-based corrected values. [EXP-019 report](experiments/EXP-019-full-material-quantity-audit.md) |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -68,13 +70,15 @@
 
 - **EXP-018 short live scan**: `Experiment 18.zip` is fresh (17:49 logs and 31 Character Development Item quantity PNGs). The user selected both Dev Items and Materials but cancelled at 17:49:49 before category handoff. Logged 31 selected/accepted material names and 310 OCR reads, including all previously missing item names. **31/31 crop figures agree with filtered OCR and 3:1 reconstructed vote**, no `REVIEW REQUIRED`, `shape corrected`, or failed-parse messages. Old 1:2 rule would have given 22 correct, 8 wrong, 1 uncertain on the same OCR readings; new 3:1 rule gives 31 correct, 0 wrong/uncertain. Because the verifier did not encounter an actual disagreement, this does **not** prove zero future false accepts; no GOOD JSON was exported due to cancellation.
 
+- **EXP-019 full live forensic audit:** User's `Experiment 19.zip` and 18:02 GOOD include all 558 matched screenshots and logs. **534/558 export quantities match screenshot** and **all 534 accepted nonzero numbers match**; the other **24 are flagged and exported 0**, not genuine zero ownership. 17 shape correction events; 24 REVIEW warnings. Shape predictions of 23 rejected items were actually correct but rejected because fewer than two OCR reads agreed; one rejected `FirmArrowhead` shows **677** with shape wrongly predicting 65 while OCR saw 677. Do not simply trust shape alone. [EXP-019 report](experiments/EXP-019-full-material-quantity-audit.md).
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**019 — Ordinary Materials short validation, then complete-materials audit.** Experiment 018's 31 Dev Items all matched their screenshot-visible quantities with no review warnings. Test 25–40 **ordinary Materials** next, with screenshot logging and the existing 3:1+shape verifier, then compare each crop with OCR decisions. If both tabs are solid, perform a complete mixed material scan and evaluate any uncertain counts; only after material accuracy is verified move to characters and performance cleanup. Do not import experimental GOOD into the live tracker yet.
+**020 — Safe recovery of 24 flagged quantities.** EXP-019 all-558 audit confirms 534 accepted correct, no accepted silent errors in this scan, but 24 uncertain zeros. Improve fallback to discriminate confidently segmented digits from OCR disagreements and safeguard against `FirmArrowhead` 677→shape 65 under-segmentation. Validate offline against both EXP-017 and held-out EXP-019 screenshot corpora before asking user for another full run. Continue deferring characters and performance changes. Do not import EXP-019 experimental GOOD into live tracker.
 
 ## Updating this ledger
 
