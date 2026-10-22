@@ -56,3 +56,22 @@ The reader still performs ten OCR calls. New `MaterialQuantityVotingTests` repro
 Independent shape confirmation: a lightweight digit glyph reader applied to the saved PNGs gave 549/558 complete quantities correctly in 5-fold held-out-item cross-validation. Requiring its decoded quantity to agree with either existing OCR branch identified **520 correct / 0 silent wrong / 38 uncertain** in that *offline dataset*. This is a **promising prototype, not a committed runtime feature**. It needs careful cross-resolution checks, implementation tests and live verification before deployment. Avoid overfitting one user's 4K UI screenshots.
 
 **Next step:** review the CI for committed 3:1 weighting and tests; only then decide between another controlled in-game test and integrating a separately tested digit-shape verifier. Keep experiment 016 forensic screenshots as optional debug cleanup for later.
+
+## EXP-018 independent glyph confirmation — integrated candidate
+
+**Implementation:** `MaterialDigitTemplates.cs`, `MaterialDigitShapeReader.cs`, `MaterialQuantityVotingReader.cs` on `feature/v4-hybrid`. No other scanner types, pooled OCR settings, or analogue timings were changed.
+
+The shape reader uses a digital-color mask and column segmentation of the original **195×44** screenshot; each digit is normalized to an 8×14 glyph and classified against ten averaged digit silhouettes. Only numeric glyph patterns are embedded; no inventory names or individual screenshot images were committed to GitHub.
+
+**True 5-fold held-out-item validation:** the digit-shape component decoded **557/558** complete quantities (FirmArrowhead 677 under-segmented two adjacent 7s). When additionally requiring **at least two** of ten original OCR predictions to agree with the shape output, **535/558** were accepted and all 535 were correct; **23** were abstentions; **zero silent errors** in this specific offline replay. The 535/0/23 result is more conservative than accepting a single matching OCR reading (540/0/18).
+
+The implementation returns an unreadable/uncertain **zero requiring user review** instead of accepting a nonzero Tesseract count without independent confirmation. It emits diagnostic logs for mismatches. For unit tests evaluating the older weighted voter in isolation, the reader can be constructed with `verifyByShape: false`; the **production default is true**.
+
+**Important limitations:**
+- This shape model has been tested only against one user's 4K, 195×44 controller crops. Other screenshot sizes currently reject rather than guess (needs wider-resolution validation).
+- The averaged templates were fitted from the labelled EXP-017 crop collection, and cross-validation estimates generalization *within that captured UI style*, not to unrelated graphics or future UI changes.
+- Offline replay is not live scanner validation. New EXP-018 capture logs and labelled quantities are needed to verify C# runtime shape extraction reproduces the Python prototype.
+- The remaining ~23 flagged counts need a correction workflow or additional recognizer improvements before a full automatic GOOD export is safe for the live tracker.
+- The ten OCR passes are still in place; performance optimization comes **after** independently verified accuracy.
+
+**Next live gate:** after CI passes, run a short controlled batch of Character Development Items **and** a short ordinary Materials-only batch (capturing original 195×44 quantities), confirm problematic cases (Chaos Gear, Crystal Chunk, 5↔9, 7↔1), and verify the 23 estimated uncertain slots are surfaced as review-needed. Only then consider a full 558-item benchmark. Character roster remains deferred.
