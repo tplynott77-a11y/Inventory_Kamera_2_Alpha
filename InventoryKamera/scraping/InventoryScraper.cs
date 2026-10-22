@@ -375,7 +375,27 @@ namespace InventoryKamera
 
             var normalizedTabs = ControllerInventoryTabNames.Select(t => t.ToLower().Replace(" ", "")).ToArray();
             string normalizedText = Regex.Replace(rawText.ToLower(), @"[\W]", string.Empty);
+            if (normalizedText.Length < 4)
+            {
+                Logger.Warn("V4 tab OCR rejected empty/short heading: '{0}'", rawText);
+                return -1;
+            }
+
             string matchedNormalized = TextNormalizer.FindClosestInList(normalizedText, new HashSet<string>(normalizedTabs));
+            if (string.IsNullOrWhiteSpace(matchedNormalized))
+                return -1;
+
+            // The alpha accepted ANY nearest match, including gibberish. Require the
+            // heading to resemble the proposed tab before allowing navigation.
+            int editDistance = TabHeadingDistance(normalizedText, matchedNormalized);
+            int tolerance = Math.Max(2, matchedNormalized.Length / 3);
+            if (editDistance > tolerance)
+            {
+                Logger.Warn("V4 tab OCR rejected weak match: raw='{0}', candidate='{1}', distance={2}, tolerance={3}",
+                    rawText, matchedNormalized, editDistance, tolerance);
+                return -1;
+            }
+
             return Array.IndexOf(normalizedTabs, matchedNormalized);
         }
 
@@ -397,96 +417,149 @@ namespace InventoryKamera
         /// <returns>The tab actually active after this call (<paramref name="targetTab"/> on success,
         /// or the original tab if detection failed and the switch was skipped) -- pass this into the
         /// next phase's <paramref name="knownCurrentTab"/> to keep the chain going without OCR.</returns>
+        // V4 milestone 1: navigation must prove the destination before any scan
+        // starts. Last phase's currentTab is only a hint, NEVER ground truth.
         internal string SwitchToTab(GameController controller, string targetTab, string knownCurrentTab = null)
         {
-            int currentIndex;
-            string rawText = null;
-
-            if (knownCurrentTab != null)
-            {
-                currentIndex = Array.IndexOf(ControllerInventoryTabNames, knownCurrentTab);
-                Logger.Info("Tab switch: using known current tab \"{0}\" (skipping OCR detection).", knownCurrentTab);
-            }
-            else
-            {
-                // Per user (2026-07-05): no settle wait existed between one scan phase's last
-                // per-item advance and the next phase's tab-detection capture -- contributed to the
-                // "Weapons" -> "eepons |" misread below, since detection fired immediately with zero
-                // margin for whatever the previous action's animation/UI was still doing.
-                Thread.Sleep(ScaledControllerDelay(500));
-
-                // Detection can also flake even with the settle above -- retry a few times before
-                // giving up, rather than treating a -1 "undetected" index as a valid array index in
-                // the step-count math below. That silently produced a plausible-but-wrong step count
-                // once (2 presses instead of 1), which would land on the wrong tab entirely and scan
-                // garbage data with no visible error.
-                currentIndex = -1;
-                const int maxDetectAttempts = 3;
-                for (int attempt = 1; attempt <= maxDetectAttempts && currentIndex < 0; attempt++)
-                {
-                    currentIndex = DetectCurrentTabIndex(out rawText);
-                    if (currentIndex < 0 && attempt < maxDetectAttempts)
-                    {
-                        Logger.Warn("Tab detection attempt {0} failed (raw=\"{1}\") -- retrying.", attempt, rawText);
-                        Thread.Sleep(ScaledControllerDelay(300));
-                    }
-                }
-            }
-
             int targetIndex = Array.IndexOf(ControllerInventoryTabNames, targetTab);
-
             if (targetIndex < 0)
-            {
-                string warning = $"\"{targetTab}\" is not a recognized inventory tab name -- skipped tab switch.";
-                Logger.Warn(warning);
-                progressReporter.AddError(warning);
-                return knownCurrentTab;
-            }
+                return AbortUnverifiedTab("Unrecognised inventory destination: " + targetTab);
+
+            Thread.Sleep(ScaledControllerDelay(350));
+
+            string rawText;
+            int currentIndex = DetectStableTabIndex(out rawText);
+            int tabCount = ControllerInventoryTabNames.Length;
 
             if (currentIndex < 0)
             {
-                // Per user (2026-07-07): don't let the scan continue against a tab it can't confirm
-                // -- that risks silently cataloguing items under the wrong item type. Ending this
-                // phase's scan (StopScanning) is safe: WeaponScraper/ArtifactScraper/MaterialScraper's
-                // own scan loops all check StopScanning before every iteration, so this stops before a
-                // single item is read rather than partway through a wrong-tab grid.
-                string warning = $"Could not confidently detect the current inventory tab (last OCR: \"{rawText}\") -- " +
-                    $"stopping this scan phase instead of switching to {targetTab} blind.";
-                Logger.Warn(warning);
-                progressReporter.AddError(warning);
-                StopScanning = true;
-                return knownCurrentTab; // unknown tab either way; nothing better to report back
+                Logger.Warn("V4: Cannot identify initial tab (OCR='{0}'); sweeping right to recover.", rawText);
+                for (int attempt = 0; attempt < tabCount && currentIndex < 0; attempt++)
+                {
+                    controller.TapButton(Xbox360Button.RightShoulder, holdMs: ScaledControllerDelay(180));
+                    Thread.Sleep(ScaledControllerDelay(650));
+                    currentIndex = DetectStableTabIndex(out rawText);
+                }
             }
 
-            string currentTabName = ControllerInventoryTabNames[currentIndex];
+            if (currentIndex < 0)
+                return AbortUnverifiedTab("Cannot identify the current inventory tab after a bounded search (OCR='" + rawText + "').");
 
-            if (currentIndex == targetIndex)
+            string actualTab = ControllerInventoryTabNames[currentIndex];
+            if (knownCurrentTab != null && !string.Equals(knownCurrentTab, actualTab, StringComparison.Ordinal))
+                Logger.Warn("V4 corrected stale previous-tab hint: expected '{0}', observed '{1}'.",
+                    knownCurrentTab, actualTab);
+
+            if (currentIndex != targetIndex)
             {
-                Logger.Info("Tab switch: scanned in on \"{0}\" (raw=\"{1}\"), already the target -- 0 shoulder presses needed.", currentTabName, rawText);
+                int forward = (targetIndex - currentIndex + tabCount) % tabCount;
+                int backward = (currentIndex - targetIndex + tabCount) % tabCount;
+                bool moveRight = forward <= backward;
+                int steps = Math.Min(forward, backward);
+                Xbox360Button button = moveRight ? Xbox360Button.RightShoulder : Xbox360Button.LeftShoulder;
+
+                Logger.Info("V4 navigating {0} -> {1}: {2} {3} presses.",
+                    actualTab, targetTab, steps, moveRight ? "right" : "left");
+
+                for (int i = 0; i < steps; i++)
+                {
+                    controller.TapButton(button, holdMs: ScaledControllerDelay(200));
+                    Thread.Sleep(ScaledControllerDelay(800));
+                }
+                Thread.Sleep(ScaledControllerDelay(550));
+            }
+
+            // NEVER infer success from a button press. Confirm the real heading.
+            int observedIndex = DetectStableTabIndex(out rawText);
+            if (observedIndex == targetIndex)
+            {
+                Logger.Info("V4 verified target inventory tab: '{0}' (OCR='{1}').", targetTab, rawText);
                 return targetTab;
             }
 
-            int tabCount = ControllerInventoryTabNames.Length;
-            int forwardSteps = ((targetIndex - currentIndex) % tabCount + tabCount) % tabCount;
-            int backwardSteps = tabCount - forwardSteps;
-            bool goForward = forwardSteps <= backwardSteps;
-            int steps = Math.Min(forwardSteps, backwardSteps);
-            Xbox360Button shoulderButton = goForward ? Xbox360Button.RightShoulder : Xbox360Button.LeftShoulder;
+            Logger.Warn("V4 tab switch did not verify: expected '{0}', observed '{1}' (OCR='{2}'). Searching.",
+                targetTab,
+                observedIndex >= 0 ? ControllerInventoryTabNames[observedIndex] : "unknown",
+                rawText);
 
-            Logger.Info("Tab switch: scanned in on \"{0}\" (raw=\"{1}\"), target \"{2}\" -- {3} {4} ({5}) presses.",
-                currentTabName, rawText, targetTab, steps, shoulderButton, goForward ? "forward/right" : "backward/left");
-
-            // Per user (2026-07-04): base tab-switch timing doubled to 200/800/1000 (through several
-            // rounds: 80/100/300 -> 120/150/400 -> 240/300/800 -> 100/400/500 -> this) -- still
-            // scaled by ScaledControllerDelay, just a higher starting point.
-            for (int i = 0; i < steps; i++)
+            // Bounded recovery: visit each next tab, read back the heading, and
+            // stop at the first independently verified destination.
+            for (int attempt = 0; attempt < tabCount; attempt++)
             {
-                controller.TapButton(shoulderButton, holdMs: ScaledControllerDelay(200));
-                Thread.Sleep(ScaledControllerDelay(800));
+                controller.TapButton(Xbox360Button.RightShoulder, holdMs: ScaledControllerDelay(200));
+                Thread.Sleep(ScaledControllerDelay(700));
+                observedIndex = DetectStableTabIndex(out rawText);
+                if (observedIndex == targetIndex)
+                {
+                    Logger.Info("V4 recovered and verified '{0}' in {1} additional tab steps.",
+                        targetTab, attempt + 1);
+                    return targetTab;
+                }
             }
-            Thread.Sleep(ScaledControllerDelay(1000));
 
-            return targetTab;
+            return AbortUnverifiedTab("Cannot reach/verify inventory tab '" + targetTab +
+                "' after a bounded navigation attempt (last OCR='" + rawText + "').");
+        }
+
+        // Require two agreeing heading reads. We intentionally pay this small
+        // one-time cost once per category to avoid scanning the wrong inventory.
+        private int DetectStableTabIndex(out string lastRawText)
+        {
+            lastRawText = "";
+            int previousIndex = -1;
+            for (int attempt = 0; attempt < 4; attempt++)
+            {
+                string raw;
+                int currentIndex = DetectCurrentTabIndex(out raw);
+                lastRawText = raw;
+                if (currentIndex >= 0 && currentIndex == previousIndex)
+                    return currentIndex;
+
+                previousIndex = currentIndex;
+                if (attempt < 3)
+                    Thread.Sleep(ScaledControllerDelay(170));
+            }
+            return -1;
+        }
+
+        private string AbortUnverifiedTab(string message)
+        {
+            Logger.Error("V4 navigation aborted: {0}", message);
+            progressReporter.AddError("V4 navigation aborted: " + message);
+            // A later category must not trust the wrong assumed current tab.
+            // This cancellation is read by all category scan loops and phase guards.
+            GameScanner.CancelRequested = true;
+            try
+            {
+                using (Bitmap failed = Navigation.CaptureWindow())
+                    SaveDebugScreenshot(failed, "navigation/unverified_inventory_tab", force: true);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Unable to capture V4 navigation-failure screenshot.");
+            }
+            throw new InvalidOperationException(message);
+        }
+
+        private static int TabHeadingDistance(string a, string b)
+        {
+            int[] previous = new int[b.Length + 1];
+            int[] current = new int[b.Length + 1];
+            for (int j = 0; j <= b.Length; j++) previous[j] = j;
+            for (int i = 1; i <= a.Length; i++)
+            {
+                current[0] = i;
+                for (int j = 1; j <= b.Length; j++)
+                {
+                    int substitutionCost = a[i - 1] == b[j - 1] ? 0 : 1;
+                    current[j] = Math.Min(Math.Min(current[j - 1] + 1,
+                        previous[j] + 1), previous[j - 1] + substitutionCost);
+                }
+                int[] swap = previous;
+                previous = current;
+                current = swap;
+            }
+            return previous[b.Length];
         }
 
         /// <summary>
