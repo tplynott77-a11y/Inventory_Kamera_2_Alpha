@@ -1048,76 +1048,94 @@ namespace InventoryKamera
 		/// with <c>ui/CoordinatePickerForm.cs</c>.
 		/// </summary>
 		private Dictionary<string, int> ScanTalents(Character character)
-		{
-			var talents = new Dictionary<string, int>
-			{
-				{ "auto" , -1 },
-				{ "skill", -1 },
-				{ "burst", -1 }
-			};
+        {
+            var talents = new Dictionary<string, int>
+            {
+                { "auto", 0 }, { "skill", 0 }, { "burst", 0 }
+            };
 
-			Rectangle region = new RECT(
-				Left:   (int)( 0.8290 * Navigation.GetWidth() ),
-				Top:    (int)( 0.1248 * Navigation.GetHeight() ),
-				Right:  (int)( 0.8743 * Navigation.GetWidth() ),
-				Bottom: (int)( 0.5687 * Navigation.GetHeight() ));
+            // Retain the proven EXP-021 overall crop, but inspect only the three
+            // actual combat-level bands within it; ascension/passive talent rows
+            // begin below these bands and must never influence auto/skill/burst.
+            Rectangle region = new RECT(
+                Left:   (int)(0.8290 * Navigation.GetWidth()),
+                Top:    (int)(0.1248 * Navigation.GetHeight()),
+                Right:  (int)(0.8743 * Navigation.GetWidth()),
+                Bottom: (int)(0.5687 * Navigation.GetHeight()));
 
-			const int requiredRows = 3;
-			int attempt = 0;
+            string[] keys = { "auto", "skill", "burst" };
+            const int maxAttempts = 8;
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                using (Bitmap capture = Navigation.CaptureRegion(region))
+                {
+                    int[] values = new int[3];
+                    bool complete = true;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        Rectangle band = CharacterScanRecognition.TalentLevelBand(
+                            capture.Width, capture.Height, i);
+                        using (Bitmap row = capture.Clone(band, capture.PixelFormat))
+                        using (Bitmap enlarged = GenshinProcesor.ResizeImage(
+                            row, row.Width * 3, row.Height * 3))
+                        {
+                            // Independent preprocessing signals. One view is
+                            // high-contrast inverted grayscale (the original
+                            // scanner's technique); one is direct grayscale.
+                            // A false reading of Lv.1 as Lv.11 must not silently
+                            // pass merely because there are three parsed rows.
+                            Bitmap filtered = imagePreprocessor.ConvertToGrayscale(enlarged);
+                            string filteredText;
+                            try
+                            {
+                                imagePreprocessor.SetContrast(60, ref filtered);
+                                imagePreprocessor.SetInvert(ref filtered);
+                                filteredText = ocrService.AnalyzeText(filtered,
+                                    Tesseract.PageSegMode.SingleLine).Trim();
+                            }
+                            finally { filtered.Dispose(); }
 
-			while (attempt < 20) // reduced from 50 per user (2026-07-05), matching ScanNameAndElement/ScanLevel's cap
-			{
-				Bitmap bm = Navigation.CaptureRegion(region);
-				Bitmap resized = GenshinProcesor.ResizeImage(bm, bm.Width * 2, bm.Height * 2);
-				Bitmap n = imagePreprocessor.ConvertToGrayscale(resized);
-				imagePreprocessor.SetContrast(60, ref n);
-				imagePreprocessor.SetInvert(ref n);
+                            string cleanText;
+                            using (Bitmap clean = imagePreprocessor.ConvertToGrayscale(enlarged))
+                                cleanText = ocrService.AnalyzeText(clean,
+                                    Tesseract.PageSegMode.SingleLine).Trim();
 
-				var lines = ocrService.AnalyzeText(n, Tesseract.PageSegMode.SingleBlock).Trim().Split('\n');
+                            if (!CharacterScanRecognition.AgreeOnTalentLevel(
+                                filteredText, cleanText, out int value))
+                            {
+                                Logger.Warn("EXP022 {0} {1} talent disagreement on try {2}: filtered='{3}', clean='{4}'",
+                                    character.NameGOOD, keys[i], attempt + 1, filteredText, cleanText);
+                                complete = false;
+                            }
+                            else values[i] = value;
+                        }
+                    }
 
-				var levels = new List<int>();
-				foreach (var line in lines)
-				{
-					var match = Regex.Match(line, @"[Ll][Vv]\.?\s*(\d+)");
-					if (match.Success && int.TryParse(match.Groups[1].Value, out int lvl) && lvl >= 1 && lvl <= 15)
-						levels.Add(lvl);
-				}
+                    if (complete)
+                    {
+                        for (int i = 0; i < 3; i++)
+                        {
+                            talents[keys[i]] = values[i];
+                            progressReporter.SetCharacter_Talent(capture,
+                                values[i].ToString(), i);
+                        }
+                        LogCharacterScreenshot(character.NameGOOD, "talents", region);
+                        LogCharacterWindow(character.NameGOOD, "talents");
+                        Logger.Info("EXP022 {0} three bounded combat talents verified: auto={1}, skill={2}, burst={3}",
+                            character.NameGOOD, values[0], values[1], values[2]);
+                        return talents;
+                    }
+                }
+                Navigation.SystemWait(Navigation.Speed.Fast);
+            }
 
-				if (levels.Count >= requiredRows)
-				{
-					talents["auto"] = levels[0];
-					talents["skill"] = levels[1];
-					talents["burst"] = levels[2];
+            // Zero is NOT a real talent level: this is a review-required
+            // sentinel, and a forced capture is always retained.
+            progressReporter.AddError($"EXP022 could not independently verify {character.NameGOOD}'s three combat talents; exported zero sentinel, NOT actual levels.");
+            LogCharacterScreenshot(character.NameGOOD, "talents_unconfirmed", region, force: true);
+            LogCharacterWindow(character.NameGOOD, "talents_unconfirmed", force: true);
+            return talents;
+        }
 
-					progressReporter.SetCharacter_Talent(bm, talents["auto"].ToString(), 0);
-					progressReporter.SetCharacter_Talent(bm, talents["skill"].ToString(), 1);
-					progressReporter.SetCharacter_Talent(bm, talents["burst"].ToString(), 2);
-					LogCharacterScreenshot(character.NameGOOD, "talents", region);
-					LogCharacterWindow(character.NameGOOD, "talents");
-
-					n.Dispose();
-					bm.Dispose();
-					break;
-				}
-
-				Logger.Debug("Controller talent scan: found {0}/{1} \"Lv. XX\" rows, retrying", levels.Count, requiredRows);
-				n.Dispose();
-				bm.Dispose();
-				attempt++;
-				Navigation.SystemWait(Navigation.Speed.Fast);
-			}
-
-			// The loop only sets all three talents together (on a successful read) then breaks; if it
-			// exhausted every attempt without that, they're still -1. Surface it (previously silent --
-			// the character just came back with -1/-1/-1 talents) and force-save the talent region so
-			// the failure is diagnosable even with LogScreenshots off.
-			if (talents["auto"] < 1 || talents["skill"] < 1 || talents["burst"] < 1)
-			{
-				progressReporter.AddError($"Could not determine {character.NameGOOD}'s talents.");
-				LogCharacterScreenshot(character.NameGOOD, "talents_unconfirmed", region, force: true);
-			}
-
-			return talents;
-		}
 	}
 }
