@@ -13,6 +13,8 @@
 
 | 011 / Materials delay 1 | 2026-10-22 13:07–13:09 | Materials | Materials | **PASS:** independently verified Materials, no switch | **199** | **199** | **61.307 s** | 184/199 quantity crops match JSON; 15 wrong (4 flagged, 11 silent); ended on repeated BitterPufferfish |
 
+| 012 / Mixed categories | 2026-10-22 14:40 export | Unverified | Char Dev + Materials requested | **UNKNOWN**: matching scan log absent | Unknown (181 distinct in export) | **181 Dev / 0 ordinary Materials** | Unverified | Provided ZIP repeats all 223 EXP-011 images; `ChaosGear=0` unresolved OCR; mixed-scan storage and image-log segregation fixes committed |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -34,13 +36,15 @@
 - 011 used scanner delay 1 (010 used 0); reported 199 material entries in 61.307 seconds. No assertion of exactly 199 expected inventory items is established by the shared capacity indicator.
 - **Manual review of all 199 saved material quantity PNG crops:** 184 agree with their corresponding GOOD values and **15 disagree (92.46% quantity agreement)**. Four mismatches generated parsing-error messages; the other eleven were silently exported with incorrect positive values.
 
+- Experiment 012 files: `Experiment 12.zip` and `genshinData_GOOD_2026_10_22_14_40.json`. Raw archive has **no 14:40 scan log/images**; its **223/223 PNG files exactly repeat Experiment 011**. The 181-key GOOD export covers only Character Development Items and contains a 0 count for `ChaosGear`. Details: [EXP-012 inconclusive analysis](experiments/EXP-012-mixed-scan-incomplete-evidence.md). The actual settings, phase stop reason and OCR quantity accuracy remain unverified.
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**012 — Material OCR precision restoration on V4.** Port V3.2's weighted OCR and individual-digit verifier into a controller-crop-compatible test service using the 199 saved Experiment 011 quantity crops as fixtures. Validate quantity accuracy, then separately introduce bounded controller repeat/selection verification and a persistent, readable scan-results UI; keep live farming tracker and V3.2 stable untouched.
+**012 follow-up — Recover correct 14:40 log bundle.** Locate the `logging` directory for the Visual Studio process that produced the 14:40 export. Verify logged requested-category checkboxes and whether the second Materials phase ran. Only use screenshots captured during that run for OCR accuracy. V4 now separates the internal material-category collections and their screenshot paths. After the evidence is recovered, retest or investigate failures without changing Fast controller timing.
 
 ## Updating this ledger
 
