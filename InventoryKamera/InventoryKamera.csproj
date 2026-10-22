@@ -4,12 +4,12 @@
     Phase 0 (foundation): converted from the legacy non-SDK project to SDK-style.
     Phase 1: replaced Accord.Imaging (built against the abandoned CoreCompat.System.Drawing,
     incompatible with the in-box System.Drawing on modern .NET) with pure System.Drawing —
-    see scraping/ImageProcessing.cs — which unblocked this net8.0-windows retarget.
+    see scraping/ImageProcessing.cs — which unblocked the modern Windows .NET retarget. V4 targets .NET 10.
   -->
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>InventoryKamera</RootNamespace>
     <AssemblyName>InventoryKamera</AssemblyName>
