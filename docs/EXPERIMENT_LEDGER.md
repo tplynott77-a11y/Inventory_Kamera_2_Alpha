@@ -11,6 +11,8 @@
 | 009 / Test 2 | 2026-10-22 12:30 | Artifacts | Artifacts | **PASS**: verified current tab, no switch | 285/285 | **276** | **34.173 s** | All 276 non-lock signatures match 008, duplicate absent; three differing lock flags |
 | 010 / Test 3 | 2026-10-22 12:34 | Artifacts | Materials | **PASS after recovery**: overshot to Food, recovered to Materials | **7 (premature stop)** | **7** | **6.204 s** | Repeat MidlanderClaymoreBillet stopped scan; 2/7 quantities wrong vs screenshot; export incomplete |
 
+| 011 / Materials delay 1 | 2026-10-22 13:07–13:09 | Materials | Materials | **PASS:** independently verified Materials, no switch | **199** | **199** | **61.307 s** | 184/199 quantity crops match JSON; 15 wrong (4 flagged, 11 silent); ended on repeated BitterPufferfish |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -28,13 +30,17 @@
 - 010 navigation: 12:34:46.612 `Artifacts -> Materials: 3 right presses`; 12:34:48.691 unexpected `Food`; 12:34:50.069 recovered and verified `Materials` in one additional step. 12:34:51.588 repeated `MidlanderClaymoreBillet` ended controller scan at 7 items; export contains just 7 materials.
 - 010 screenshot crops prove quantity disagreements: `NorthlanderBowBillet` screenshot 2 vs GOOD 4, `MidlanderSwordBillet` screenshot 6 vs GOOD 4. Other five exported quantities match saved screenshots. No verified source of wrong quantities beyond inherited alpha OCR and no verified root cause of repeated material read yet.
 
+- Experiment 011 logs: `Experiment 11.zip`; export: `genshinData_GOOD_2026_10_22_13_08.json`. Full results: [EXP-011 report](experiments/EXP-011-material-ocr-audit-delay-1.md).
+- 011 used scanner delay 1 (010 used 0); reported 199 material entries in 61.307 seconds. No assertion of exactly 199 expected inventory items is established by the shared capacity indicator.
+- **Manual review of all 199 saved material quantity PNG crops:** 184 agree with their corresponding GOOD values and **15 disagree (92.46% quantity agreement)**. Four mismatches generated parsing-error messages; the other eleven were silently exported with incorrect positive values.
+
 ## Interpretation
 
-The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. However, Experiment 010 exposed an early repeat-triggered stop (7 exported) plus 2/7 directly verified quantity misreads. These results do *not* validate full material scanning, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
+The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**011 — Isolate controller Materials traversal repeat.** Add per-step selection evidence, bounded retry/reconfirmation on repeated name, and fail-closed completeness gating **on V4 only**. Rerun Materials-only from Artifacts; track whether it progresses beyond the first seven entries. The V3.2 precision OCR transplant is still pending.
+**012 — Material OCR precision restoration on V4.** Port V3.2's weighted OCR and individual-digit verifier into a controller-crop-compatible test service using the 199 saved Experiment 011 quantity crops as fixtures. Validate quantity accuracy, then separately introduce bounded controller repeat/selection verification and a persistent, readable scan-results UI; keep live farming tracker and V3.2 stable untouched.
 
 ## Updating this ledger
 
