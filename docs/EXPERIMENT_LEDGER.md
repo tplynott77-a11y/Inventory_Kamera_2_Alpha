@@ -35,6 +35,8 @@
 
 | 020 / FULL live 558-item validation | 2026-10-22 19:54–20:00 | Char Dev verified | Dev + ordinary Materials | **PASS both:** 359 Dev, 199 Materials; normal end, export complete | **558 accepted** | **558 GOOD values** | Dev ~199 s; Materials ~109 s | **558/558 screenshot-consistent (100% observed)**, 0 zeros, 0 wrong values, 0 review/parse warnings. 23 safe fallbacks + 16 shape-based corrections. 542/558 current crop digit masks identical to independently audited EXP019; remaining 16 paired captures checked visually. [EXP-020 report](experiments/EXP-020-safe-material-quantity-recovery.md). |
 
+| 021 / first full roster | 2026-10-22 20:19–20:27 | free-roam | Characters only | **PARTIAL:** Attributes 71 success, 2 unrecognized; Constellations 71 scanned; Talents 65 success and 6 verified header failures; completed normally | 73 slots / 71 recognized | **71 GOOD characters** | ~7m43s character phase | **NOT IMPORT-SAFE:** Cryo Traveler mis-OCR `cryaq`, 6 talents all zeros (Razor, Sucrose, Collei, Chiori, Dehya, YunJin); Kachina normal attack false 11 vs screenshot Lv1; Charlotte C3 vs screenshot Activated C4, Kirara C4 vs Activated C5 (affects talent bonus). [EXP-021 report](experiments/EXP-021-full-character-scan-audit.md). |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -80,13 +82,15 @@
 
 - **EXP-020 actual live success:** `Experiment 20.zip` + `genshinData_GOOD_2026_10_22_20_00.json`. 359 Dev + 199 ordinary Materials finished without cancellation; 558 screenshot crops and 558 GOOD keys, **0 zero-valued exports**, **0 warn/error log lines**, 23 high-confidence fallback recoveries and 16 shape corrections. All **558 GOOD quantities match** independently manually labelled EXP019 screenshots; 542 current-vs-prior quantity glyph masks identical, 16 remaining pairs manually checked and same numbers. **100% single-run screenshot consistency, not a universal guarantee**; stable inventory and same 4K UI. All prior 24 rejected quantities recovered including 677 `FirmArrowhead`. This is a material-only milestone; Characters untested.
 
+- **EXP-021 first full Characters-only pass:** 20:19–20:27 local, 4K/Normal, 71/73 slots recognized and exported, 71 constellation results and 65 complete talent reads. Cryo Traveler + mannequin excluded by bad OCR; six characters have invalid zero talents after failed identity verification; Kachina auto incorrectly 11 on screenshot Lv1; Charlotte and Kirara stop their greedy constellation OCR one node too early despite visibly `Activated` screenshots (C4 and C5). Three other increases vs Oct 15 records may be genuine wishes. This GOOD is **not safe to import**; follow targeted bugfix EXP022. [Detailed EXP-021 report](experiments/EXP-021-full-character-scan-audit.md).
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**021 — move forward carefully.** Preserve the EXP020 materials pipeline that produced 558/558 screenshot-consistent quantities. Next focus on optional/debug-only EXP016 navigation screenshots and measured performance improvements (without weakening OCR accuracy); then isolated Characters roster scanning tests. Also consider a changing-inventory or alternate-resolution materials robustness test before public release. **Do not automatically assume the Characters scanner works because Materials passed.** Historical tracker imports should remain deliberate, with backup.
+**022 — Character-specific correctness fixes.** First replay EXP021 screenshots, capture forensic evidence when talent-stage character identity fails, improve bright-background `Activated` recognition (Kirara C5, Charlotte C4), isolate three combat talent rows and reject false accepted values such as Kachina auto=11 for displayed Lv1. Investigate Cryo Traveler OCR `cryaq`, then a fresh full Characters scan and visual audit. Keep EXP020's archived materials pipeline unchanged; do not import EXP021 GOOD as character truth or assume past Weapons/Artifacts performance certifies combined-run correctness.
 
 ## Updating this ledger
 
