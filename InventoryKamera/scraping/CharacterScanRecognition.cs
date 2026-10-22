@@ -23,6 +23,18 @@ namespace InventoryKamera
             return recognizedElement;
         }
 
+        /// <summary>
+        /// Low-ascension Normal Attacks have a strict upper bound; even
+        /// allowing Childe's +1 passive, an A3 (or lower) character cannot
+        /// display a genuine Normal Attack Lv. 11. EXP-021 Kachina was
+        /// incorrectly accepted as Lv. 11 at ascension 3, despite screenshot Lv. 1.
+        /// Higher ascensions are left to ordinary OCR verification.
+        /// </summary>
+        internal static bool ImpossibleLowAscensionAuto(int ascension, int rawAuto)
+        {
+            return ascension >= 0 && ascension <= 3 && rawAuto > 7;
+        }
+
         internal static bool SaysActivated(string text) =>
             !string.IsNullOrWhiteSpace(text) &&
             Regex.IsMatch(text, @"\bactivated\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
