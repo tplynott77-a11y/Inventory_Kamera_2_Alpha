@@ -13,10 +13,12 @@ namespace InventoryKamera
     {
         internal static string RepairTravelerElement(string name, string rawElement, string recognizedElement)
         {
-            // EXP-021: the custom-named Cryo Traveler was read as "cryaq".
-            // Never treat cryaq as a valid element for other characters.
+            // EXP-021/022: Cryo Traveler was read as "cryaq" and "gryo".
+            // Accept only these observed spellings, only for independently
+            // recognized Traveler. No fuzzy matching for other characters.
             if (string.Equals(name, "Traveler", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(rawElement?.Trim(), "cryaq", StringComparison.OrdinalIgnoreCase))
+                (string.Equals(rawElement?.Trim(), "cryaq", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(rawElement?.Trim(), "gryo", StringComparison.OrdinalIgnoreCase)))
                 return "cryo";
             return recognizedElement;
         }
