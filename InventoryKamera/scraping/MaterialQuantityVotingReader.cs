@@ -45,6 +45,67 @@ namespace InventoryKamera
             return supportingReads >= 2 ? shapeValue : 0;
         }
 
+        /// <summary>
+        /// EXP-020: a conservative fallback for shapes with well-separated
+        /// digit template scores when Tesseract consistently confuses 3/5
+        /// with 9, 3/7 with 1, or drops the final zero of a ten.
+        ///
+        /// The bounds were replayed over complete EXP-017 and EXP-019 logs.
+        /// If the shape or repeated compatible OCR signal is unclear, reject.
+        /// This is deliberately limited to the verified 4K crop geometry.
+        /// </summary>
+        internal static int ConfirmWithFallback(MaterialShapeReading shape,
+            IEnumerable<string> rawOcr, out bool fallbackUsed)
+        {
+            fallbackUsed = false;
+            if (shape.Value <= 0) return 0;
+            var readings = rawOcr.ToList();
+            if (ConfirmByShape(shape.Value, readings) > 0)
+                return shape.Value;
+
+            if (!shape.GeometryValid || shape.MinimumMargin < 400 ||
+                shape.MaximumDistance > 600)
+                return 0;
+
+            string expected = shape.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            int compatible = 0;
+            foreach (string raw in readings)
+            {
+                if (CompatibleDigitConfusion(expected, raw))
+                    compatible++;
+            }
+            if (compatible < 2) return 0;
+            fallbackUsed = true;
+            return shape.Value;
+        }
+
+        internal static bool CompatibleDigitConfusion(string expected, string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return false;
+            if (!MaterialQuantityVotes.TryParseQuantity(raw, out _))
+                return false;
+            string observed = raw.Trim().Replace(" ", "").Replace(",", "");
+
+            // Clean OCR often drops the trailing zero of 10; this is
+            // accepted only when independently strong glyphs show 10.
+            if (expected.Length == observed.Length + 1 &&
+                expected.EndsWith("0", StringComparison.Ordinal) &&
+                expected.Substring(0, expected.Length - 1) == observed)
+                return true;
+            if (expected.Length != observed.Length) return false;
+            for (int i = 0; i < expected.Length; i++)
+            {
+                char a = expected[i], b = observed[i];
+                if (a == b) continue;
+                bool commonMisread =
+                    (a == '3' && (b == '9' || b == '1')) ||
+                    (a == '5' && b == '9') ||
+                    (a == '7' && b == '1');
+                if (!commonMisread) return false;
+            }
+            return true;
+        }
+
         internal int Read(Bitmap crop)
         {
             if (crop == null) throw new ArgumentNullException(nameof(crop));
@@ -102,11 +163,17 @@ namespace InventoryKamera
                 return 0;
             }
 
-            int shapeValue = MaterialDigitShapeReader.Read(crop);
-            int confirmed = ConfirmByShape(shapeValue, rawReads);
+            MaterialShapeReading shape = MaterialDigitShapeReader.Analyze(crop);
+            int confirmed = ConfirmWithFallback(shape, rawReads, out bool fallbackUsed);
             if (confirmed == 0)
-                Logger.Warn("Material quantity REVIEW REQUIRED: shape={0}, weighted={1}, votes={2}",
-                    shapeValue, hasWeightedConsensus ? weightedResult : 0, votes.Summarize());
+                Logger.Warn("Material quantity REVIEW REQUIRED: shape={0}, weighted={1}, geometry={2}, margin={3:F0}, distance={4:F0}, votes={5}",
+                    shape.Value, hasWeightedConsensus ? weightedResult : 0,
+                    shape.GeometryValid, shape.MinimumMargin, shape.MaximumDistance,
+                    votes.Summarize());
+            else if (fallbackUsed)
+                Logger.Info("Material quantity EXP020 high-confidence shape fallback: weighted={0} -> {1}, margin={2:F0}, distance={3:F0}",
+                    hasWeightedConsensus ? weightedResult : 0, confirmed,
+                    shape.MinimumMargin, shape.MaximumDistance);
             else if (confirmed != weightedResult)
                 Logger.Info("Material quantity shape corrected weighted OCR: {0} -> {1}",
                     hasWeightedConsensus ? weightedResult : 0, confirmed);
