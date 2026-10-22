@@ -37,6 +37,8 @@
 
 | 021 / first full roster | 2026-10-22 20:19–20:27 | free-roam | Characters only | **PARTIAL:** Attributes 71 success, 2 unrecognized; Constellations 71 scanned; Talents 65 success and 6 verified header failures; completed normally | 73 slots / 71 recognized | **71 GOOD characters** | ~7m43s character phase | **NOT IMPORT-SAFE:** Cryo Traveler mis-OCR `cryaq`, 6 talents all zeros (Razor, Sucrose, Collei, Chiori, Dehya, YunJin); Kachina normal attack false 11 vs screenshot Lv1; Charlotte C3 vs screenshot Activated C4, Kirara C4 vs Activated C5 (affects talent bonus). [EXP-021 report](experiments/EXP-021-full-character-scan-audit.md). |
 
+| 022 / character OCR safeguards | 2026-10-22 (offline implementation) | — | Characters | **CODE+TEST PASS, LIVE UNVERIFIED**: exact Cryo Traveler typo correction, gold-mask `Activated` OCR, three bounded talent rows, forced header diagnostics, C3/C5 contradiction sentinel | No fresh scan | N/A | N/A | Offline mask reads Charlotte C4 and Kirara C5 as Activated, locked examples blank; CI regression tests. **DO NOT IMPORT** until next full live screenshot audit. [EXP-022 report](experiments/EXP-022-character-recognition-fixes.md). |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -84,13 +86,15 @@
 
 - **EXP-021 first full Characters-only pass:** 20:19–20:27 local, 4K/Normal, 71/73 slots recognized and exported, 71 constellation results and 65 complete talent reads. Cryo Traveler + mannequin excluded by bad OCR; six characters have invalid zero talents after failed identity verification; Kachina auto incorrectly 11 on screenshot Lv1; Charlotte and Kirara stop their greedy constellation OCR one node too early despite visibly `Activated` screenshots (C4 and C5). Three other increases vs Oct 15 records may be genuine wishes. This GOOD is **not safe to import**; follow targeted bugfix EXP022. [Detailed EXP-021 report](experiments/EXP-021-full-character-scan-audit.md).
 
+- **EXP-022 targeted character OCR safeguards:** Exact `cryaq`→Cryo correction only for identified Traveler; isolate gold/orange `Activated` lettering on Charlotte C4/Kirara C5 using pixel-colour mask before existing gamma OCR; separate combat-level talent bands and require independent matching reads (zeros on unresolved rather than fabricated numbers); capture full-window evidence on failed phase identity; guard C3/C5 bonus deductions. The 4K EXP021 screenshots and unit tests support these fixes, but **a new full live character scan is required** before any character GOOD import. [EXP-022 detail](experiments/EXP-022-character-recognition-fixes.md).
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**022 — Character-specific correctness fixes.** First replay EXP021 screenshots, capture forensic evidence when talent-stage character identity fails, improve bright-background `Activated` recognition (Kirara C5, Charlotte C4), isolate three combat talent rows and reject false accepted values such as Kachina auto=11 for displayed Lv1. Investigate Cryo Traveler OCR `cryaq`, then a fresh full Characters scan and visual audit. Keep EXP020's archived materials pipeline unchanged; do not import EXP021 GOOD as character truth or assume past Weapons/Artifacts performance certifies combined-run correctness.
+**022 live validation:** Pull the latest `feature/v4-hybrid` build and scan all Characters only at Normal controller delay / 3840x2160, with screenshot logging. Audit Cryo Traveler, Charlotte C4, Kirara C5, Kachina Lv.1 and all character-header diagnostics, talent uncertainties/zeros, and C3/C5 corrections. A clean CI run and retrospective image mask test do not certify an unobserved live run. Keep archived EXP020 untouched; no live GOOD import until independent field-level audit.
 
 ## Updating this ledger
 
