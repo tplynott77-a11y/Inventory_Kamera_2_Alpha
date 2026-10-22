@@ -37,15 +37,19 @@ namespace InventoryKamera
 	{
 		private static NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
 
+        private readonly MaterialQuantityVotingReader quantityReader;
+
 
 		public MaterialScraper(IOcrService ocrService, IImagePreprocessor imagePreprocessor, IScanSettings scanSettings, IScanProgressReporter progressReporter) : base(ocrService, imagePreprocessor, scanSettings, progressReporter)
 		{
 			inventoryPage = InventoryPage.CharacterDevelopmentItems;
+            quantityReader = new MaterialQuantityVotingReader(ocrService, imagePreprocessor);
 		}
 
 		public MaterialScraper(IOcrService ocrService, IImagePreprocessor imagePreprocessor, IScanSettings scanSettings, IScanProgressReporter progressReporter, InventoryPage section) : base(ocrService, imagePreprocessor, scanSettings, progressReporter)
 		{
 			inventoryPage = section;
+            quantityReader = new MaterialQuantityVotingReader(ocrService, imagePreprocessor);
 		}
 
 		internal void SetInventoryPage(InventoryPage page)
@@ -303,75 +307,15 @@ namespace InventoryKamera
 				height: (int)(rowHeightFrac * Navigation.GetHeight()));
 		}
 
-		/// <summary>
-		/// Controller-mode equivalent of <see cref="ScanMaterialCount"/>'s digit-recognition pipeline
-		/// (multi-scale color filter -> grayscale -> invert -> threshold -> OCR, majority-vote fallback
-		/// across scales) -- identical to that method's logic, just fed a bitmap already captured from
-		/// <see cref="GetQuantityRegion"/> instead of re-deriving a grid-cell's bottom
-		/// strip from a mouse-detected rectangle (there is no such rectangle in controller mode).
-		/// </summary>
-		private int ScanQuantityBitmap(Bitmap quantityBitmap)
-		{
-			Dictionary<int, int> counts = new Dictionary<int, int>();
-
-			var rRange = new IntRange(0, 150);
-			var bRange = new IntRange(0, 150);
-			var gRange = new IntRange(0, 150);
-
-			for (var scale = 1.0; scale <= 3; scale += 0.5)
-			{
-				using (Bitmap rescaled = GenshinProcesor.ResizeImage(quantityBitmap, (int)(quantityBitmap.Width * scale), (int)(quantityBitmap.Height * scale)))
-				{
-					Bitmap copy = (Bitmap)rescaled.Clone();
-					imagePreprocessor.FilterColors(ref copy, rRange, bRange, gRange);
-
-					for (int i = 0; i < copy.Width; i++)
-						for (int j = 0; j < copy.Height * 0.25; j++)
-							copy.SetPixel(i, j, Color.White);
-
-					Bitmap n = imagePreprocessor.ConvertToGrayscale(copy);
-
-					imagePreprocessor.SetInvert(ref n);
-					imagePreprocessor.SetThreshold(50, ref n);
-
-					string original = ocrService.AnalyzeText(n).Trim();
-
-					n.Dispose();
-					copy.Dispose();
-
-					if (int.TryParse(original, out int val)) return val;
-
-					var cleaned = original;
-					cleaned = cleaned.Replace("M", "111");
-					cleaned = Regex.Replace(cleaned, @"[^0-9]", string.Empty);
-
-					int.TryParse(cleaned, out val);
-
-					Logger.Debug("Material quantity OCR: raw=\"{0}\" cleaned=\"{1}\" parsed={2}", original, cleaned, val);
-
-					if (counts.TryGetValue(val, out var counter))
-					{
-						if (counter >= 3 && val != 0) return val;
-						counts[val]++;
-					}
-					else
-					{
-						counts.Add(val, 1);
-					}
-				}
-			}
-
-			var nullableMode = SafeExtractMaxCounter(counts);
-			if (nullableMode == null)
-				return 0;
-
-			var mode = nullableMode.Value;
-			if (mode.Key == 0 && counts.Count >= 5)
-				return 0;
-
-			counts.Remove(mode.Key);
-			return SafeExtractMaxCounter(counts)?.Value ?? 0;
-		}
+        /// <summary>
+        /// V4 quantity recognition with the V3.2 two-view weighted vote.
+        /// The V3.2 individual-digit silhouette templates have not yet been
+        /// calibrated to controller-mode quantity crops (~195x44 at 4K).
+        /// </summary>
+        private int ScanQuantityBitmap(Bitmap quantityBitmap)
+        {
+            return quantityReader.Read(quantityBitmap);
+        }
 
 		/// <summary>
 		/// Controller-driven materials/character-development-items scan (Phase 3 §6c). Name is read via
