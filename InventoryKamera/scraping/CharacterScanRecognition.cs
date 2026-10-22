@@ -60,7 +60,11 @@ namespace InventoryKamera
             if (index < 0 || index >= begins.Length) throw new ArgumentOutOfRangeException(nameof(index));
             int top = (int)(height * begins[index]);
             int bottom = Math.Min(height, (int)(height * (begins[index] + 0.125)));
-            return new Rectangle(0, top, width, bottom - top);
+            // Trim away the left-aligned talent name (the cropped 4K
+            // screenshots show Lv. text consistently in the right 76%).
+            // This stops partial names from contaminating a SingleLine OCR.
+            int left = (int)(width * 0.24);
+            return new Rectangle(left, top, width - left, bottom - top);
         }
 
         internal static bool TrySingleTalentLevel(string text, out int level)
