@@ -110,6 +110,16 @@ namespace InventoryKamera.Tests
         }
 
         [Fact]
+        public void SetMaterial_PutsCountOnItsOwnLine()
+        {
+            var viewModel = new ScanViewModel();
+            using var nameplate = MakeSolidColor(4, 4, Color.Red);
+            using var quantity = MakeSolidColor(4, 4, Color.Blue);
+            viewModel.SetMaterial(nameplate, quantity, "GuideToBallad", 4);
+
+            Assert.Equal($"Name: GuideToBallad{Environment.NewLine}Count: 4", viewModel.MaterialText);
+        }
+        [Fact]
         public void ResetCounters_ZerosMaterialCountAndCharacterMax()
         {
             var viewModel = new ScanViewModel();
