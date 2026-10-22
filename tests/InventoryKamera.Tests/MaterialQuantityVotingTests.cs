@@ -161,6 +161,81 @@ namespace InventoryKamera.Tests
             Assert.Equal(0, MaterialDigitShapeReader.Read(crop));
         }
 
+        [Theory]
+        [InlineData("35", "99")]
+        [InlineData("37", "31")]
+        [InlineData("33", "93")]
+        [InlineData("318", "918")]
+        [InlineData("5", "9")]
+        [InlineData("3", "1")]
+        [InlineData("7", "1")]
+        [InlineData("10", "1")]
+        public void EXP020_KnownQuantityDigitMisreadsCanSupportStrongGlyphs(
+            string shape, string ocr)
+        {
+            Assert.True(MaterialQuantityVotingReader.CompatibleDigitConfusion(
+                shape, ocr));
+        }
+
+        [Theory]
+        [InlineData("35", "53")]
+        [InlineData("356", "3906")]
+        [InlineData("704", "104")]
+        [InlineData("677", "65")]
+        [InlineData("5", "")]
+        [InlineData("5", "abc")]
+        public void EXP020_OtherDisagreementsDoNotReceiveFallbackSupport(
+            string shape, string ocr)
+        {
+            Assert.False(MaterialQuantityVotingReader.CompatibleDigitConfusion(
+                shape, ocr));
+        }
+
+        [Fact]
+        public void EXP020_ConfidentShapeRecoversCrystalChunkFromGrayscaleConfusion()
+        {
+            var shape = new MaterialShapeReading(35, 511, 408, true);
+            var reads = new[] { "", "99", "", "39", "", "99", "", "39", "", "99" };
+            Assert.Equal(35, MaterialQuantityVotingReader.ConfirmWithFallback(
+                shape, reads, out bool usedFallback));
+            Assert.True(usedFallback);
+        }
+
+        [Fact]
+        public void EXP020_ConfidentShapeRecoversTenWhenOcrDropsTrailingZero()
+        {
+            var shape = new MaterialShapeReading(10, 748, 378, true);
+            Assert.Equal(10, MaterialQuantityVotingReader.ConfirmWithFallback(
+                shape, new[] { "", "1", "", "1", "", "1" }, out bool usedFallback));
+            Assert.True(usedFallback);
+        }
+
+        [Fact]
+        public void EXP020_SevenSixSevenRecoversFromTwoExactOcrReads()
+        {
+            // Once touching 7s are correctly separated, the high-quality
+            // filtered OCR provides independent confirmation.
+            var shape = new MaterialShapeReading(677, 689, 369, true);
+            Assert.Equal(677, MaterialQuantityVotingReader.ConfirmWithFallback(
+                shape, new[] { "677", "01771", "677", "6171", "677" },
+                out bool usedFallback));
+            Assert.False(usedFallback);
+        }
+
+        [Fact]
+        public void EXP020_WeakOrNonStandardGlyphsStillFailClosed()
+        {
+            var reads = new[] { "99", "99", "99", "99", "99" };
+            Assert.Equal(0, MaterialQuantityVotingReader.ConfirmWithFallback(
+                new MaterialShapeReading(35, 399, 300, true), reads, out _));
+            Assert.Equal(0, MaterialQuantityVotingReader.ConfirmWithFallback(
+                new MaterialShapeReading(35, 700, 601, true), reads, out _));
+            Assert.Equal(0, MaterialQuantityVotingReader.ConfirmWithFallback(
+                new MaterialShapeReading(35, 700, 300, false), reads, out _));
+            Assert.Equal(0, MaterialQuantityVotingReader.ConfirmWithFallback(
+                new MaterialShapeReading(35, 700, 300, true), new[] { "98", "98" }, out _));
+        }
+
         private sealed class QueueOcr : IOcrService
         {
             private readonly Queue<string> values;
