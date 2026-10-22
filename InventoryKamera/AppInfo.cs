@@ -27,7 +27,7 @@ namespace InventoryKamera
         /// System.Version accepts only the numeric core; stripping letters leaves
         /// an invalid trailing hyphen such as "2.0.0-".
         /// </summary>
-        internal static bool TryParseReleaseTagVersion(string tag, out Version version)
+        internal static bool TryParseReleaseTagVersion(string tag, out System.Version version)
         {
             version = null;
             if (string.IsNullOrWhiteSpace(tag))
@@ -36,7 +36,7 @@ namespace InventoryKamera
             Match match = Regex.Match(tag.Trim(),
                 @"^[vV]?(?<numeric>\d+\.\d+(?:\.\d+){0,2})(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$");
 
-            return match.Success && Version.TryParse(match.Groups["numeric"].Value, out version);
+            return match.Success && System.Version.TryParse(match.Groups["numeric"].Value, out version);
         }
     }
 }
