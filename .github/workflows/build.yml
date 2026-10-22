@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [ master, 'modernize/**' ]
+    branches: [ master, 'modernize/**', 'feature/v4-hybrid' ]
   pull_request:
     branches: [ master ]
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore
         run: dotnet restore InventoryKamera.sln
