@@ -1120,9 +1120,22 @@ namespace InventoryKamera
 						levels.Add(lvl);
 				}
 
-				if (levels.Count >= requiredRows)
-				{
-					talents["auto"] = levels[0];
+				if (levels.Count >= requiredRows &&
+                    CharacterScanRecognition.ImpossibleLowAscensionAuto(character.Ascension, levels[0]))
+                {
+                    Logger.Warn("EXP023 {0}: rejected impossible Normal Attack Lv.{1} at ascension {2}.",
+                        character.NameGOOD, levels[0], character.Ascension);
+                    // Preserve the first suspicious frame for diagnosis. Retries
+                    // may read the correct level after animations settle.
+                    if (attempt == 0)
+                    {
+                        LogCharacterScreenshot(character.NameGOOD, "talents_suspect", region, force: true);
+                        LogCharacterWindow(character.NameGOOD, "talents_suspect", force: true);
+                    }
+                }
+                else if (levels.Count >= requiredRows)
+                {
+                    talents["auto"] = levels[0];
 					talents["skill"] = levels[1];
 					talents["burst"] = levels[2];
 
