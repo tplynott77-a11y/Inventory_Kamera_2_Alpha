@@ -66,6 +66,25 @@ namespace InventoryKamera.Tests
         }
 
         [Fact]
+        public void AlternatingQuantityAndNameReads_DoesNotKeepDigitWhitelist()
+        {
+            // One engine forces pool reuse. EXP-016 proved that quantity OCR left
+            // tessedit_char_whitelist='0123456789' active for the next name read.
+            using var ocr = new OcrService(engineCount: 1);
+            using var quantity = RenderText("42");
+            using var name = RenderText("CHAOS", width: 500, height: 120, fontSize: 58);
+
+            string digitRead = ocr.AnalyzeText(quantity, PageSegMode.SingleWord,
+                numbersOnly: true).Trim();
+            string nameRead = ocr.AnalyzeText(name, PageSegMode.SingleWord,
+                numbersOnly: false).Trim();
+            output.WriteLine($"Digit pass='{digitRead}', subsequent name pass='{nameRead}'");
+
+            Assert.Equal("42", digitRead);
+            Assert.Matches("[A-Za-z]", nameRead);
+        }
+
+        [Fact]
         public void Restart_ProducesAWorkingEnginePool()
         {
             using var ocr = new OcrService();
