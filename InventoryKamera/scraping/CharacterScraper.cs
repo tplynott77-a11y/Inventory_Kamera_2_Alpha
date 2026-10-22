@@ -544,6 +544,18 @@ namespace InventoryKamera
 		/// </summary>
 		private void ApplyConstellationTalentScaling(Character character)
 		{
+            // A previous phase may have failed identity or talent OCR; zero is
+            // our review-required sentinel, not a genuine in-game talent.
+            // Never turn missing values into negative GOOD levels by applying
+            // C3/C5 talent bonuses to a failed read.
+            if (character.Talents == null ||
+                character.Talents.Values.Any(level => level < 1 || level > 15))
+            {
+                Logger.Warn("Skipping talent constellation correction for {0}: levels are unverified.",
+                    character.NameGOOD);
+                return;
+            }
+
 			// Pyro Traveler's own constellation scan can't be trusted (per user, 2026-07-05): the
 			// secondary constellations that grant +3 to a talent are visually embedded in the same 6
 			// nodes as the base unlocks, so ScanConstellations can misreport a
@@ -621,17 +633,33 @@ namespace InventoryKamera
 				string talentLeveledAtConst3 = (string)order[0];
 				string talentLeveledAtConst5 = (string)order[1];
 
-				if (character.Constellation >= 3)
-				{
-					Logger.Info("{0} constellation 3+, adjusting scanned {1} level", character.NameGOOD, talentLeveledAtConst3);
-					character.Talents[talentLeveledAtConst3] -= 3;
-				}
+				// A C3/C5 boosted talent cannot be displayed below Lv. 4.
+                // If it is, either the constellation OCR or the level OCR
+                // disagreed. Preserve the character as review-required.
+                bool impossibleC3 = character.Constellation >= 3 &&
+                    (!character.Talents.TryGetValue(talentLeveledAtConst3, out int boostedAtC3) || boostedAtC3 < 4);
+                bool impossibleC5 = character.Constellation >= 5 &&
+                    (!character.Talents.TryGetValue(talentLeveledAtConst5, out int boostedAtC5) || boostedAtC5 < 4);
+                if (impossibleC3 || impossibleC5)
+                {
+                    progressReporter.AddError($"{character.NameGOOD}: constellation and displayed talent levels disagree; review screenshots.");
+                    character.Talents["auto"] = 0;
+                    character.Talents["skill"] = 0;
+                    character.Talents["burst"] = 0;
+                    return;
+                }
 
-				if (character.Constellation >= 5)
-				{
-					Logger.Info("{0} constellation 5+, adjusting scanned {1} level", character.NameGOOD, talentLeveledAtConst5);
-					character.Talents[talentLeveledAtConst5] -= 3;
-				}
+                if (character.Constellation >= 3)
+                {
+                    Logger.Info("{0} constellation 3+, adjusting scanned {1} level", character.NameGOOD, talentLeveledAtConst3);
+                    character.Talents[talentLeveledAtConst3] -= 3;
+                }
+
+                if (character.Constellation >= 5)
+                {
+                    Logger.Info("{0} constellation 5+, adjusting scanned {1} level", character.NameGOOD, talentLeveledAtConst5);
+                    character.Talents[talentLeveledAtConst5] -= 3;
+                }
 			}
 		}
 
