@@ -242,7 +242,8 @@ namespace InventoryKamera
                 CharacterLevel_PictureBox.Image = quantity;
                 previousLevel?.Dispose();
 
-                CharacterOutput_TextBox.Text = scanViewModel.MaterialText;
+                // Ensure the WinForms multiline textbox receives CRLF, even for legacy LF-only text.
+                CharacterOutput_TextBox.Text = scanViewModel.MaterialText?.Replace("\r\n", "\n").Replace("\n", Environment.NewLine);
             };
             CharacterName_PictureBox.Invoke(render);
         }
