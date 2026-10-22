@@ -248,7 +248,7 @@ namespace InventoryKamera.Tests
 
             viewModel.SetMaterial(nameplate, quantity, "Mora", 5000);
 
-            Assert.Equal("Name: Mora\nCount: 5000", viewModel.MaterialText);
+            Assert.Equal($"Name: Mora{Environment.NewLine}Count: 5000", viewModel.MaterialText);
             Assert.NotSame(nameplate, viewModel.CloneMaterialNameplateImage());
             Assert.NotSame(quantity, viewModel.CloneMaterialQuantityImage());
             Assert.Equal(1, raisedCount);
