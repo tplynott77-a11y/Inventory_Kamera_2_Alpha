@@ -340,6 +340,19 @@ namespace InventoryKamera
 		/// </summary>
 		/// <returns>The tab actually active once this method returns, to hand into the next
 		/// controller-driven phase (see <see cref="InventoryScraper.SwitchToTab"/>).</returns>
+        /// <summary>
+        /// Keep Char Dev and ordinary Materials separate during scanning;
+        /// GOOD combines both only when building the final export.
+        /// </summary>
+        internal static HashSet<Material> GetDestinationSet(Inventory inventory, InventoryPage page)
+        {
+            if (inventory == null) throw new ArgumentNullException(nameof(inventory));
+            if (page == InventoryPage.CharacterDevelopmentItems) return inventory.DevMaterials;
+            if (page == InventoryPage.Materials) return inventory.Materials;
+            throw new ArgumentOutOfRangeException(nameof(page), page,
+                "Expected Character Development Items or Materials.");
+        }
+
 		internal string ScanMaterials(GameController controller, ref Inventory inventory, string knownCurrentTab = null)
 		{
 			StopScanning = false;
@@ -349,6 +362,7 @@ namespace InventoryKamera
 				: "Materials";
 
 			string currentTab = SwitchToTab(controller, targetTab, knownCurrentTab);
+            HashSet<Material> destination = GetDestinationSet(inventory, inventoryPage);
 
 			// Full-window reference shot of the grid before scanning starts -- useful alongside the
 			// per-item quantity crops for judging whether GetQuantityRegion's fixed
@@ -414,7 +428,7 @@ namespace InventoryKamera
 						consecutiveEmptyReads = 0;
 					}
 
-					if (!string.IsNullOrEmpty(name) && inventory.Materials.Contains(material))
+					if (!string.IsNullOrEmpty(name) && destination.Contains(material))
 					{
 						Logger.Debug("Repeat material found ({0}) -- stopping controller {1} scan.", name, inventoryPage);
 						break;
@@ -435,7 +449,7 @@ namespace InventoryKamera
 							}
 
 							material.count = count;
-							inventory.Materials.Add(material);
+							destination.Add(material);
 							progressReporter.ResetCharacterDisplay();
 							progressReporter.SetMaterial(nameBitmap, quantity, name, count);
 							scanned++;
