@@ -23,7 +23,7 @@
 
 | 016 / actual paired screenshots | 2026-10-22 16:26–16:27 | Char Dev Items | Dev Items + Materials UI enabled | **PASS navigation**: 12/12 commands exactly one visible grid step; **FAIL name OCR**: 5 of first 12 recognized as empty despite legible crops | 12 instrumented selections; user canceled after 23 accepted names | N/A (canceled) | 16:26:48–16:27:14 | ROOT CAUSE found: pooled Tesseract digit-only whitelist persists into later item-name reads; repaired in `OcrService.cs` with regression test. See [EXP-016 report](experiments/EXP-016-diagnosis-and-ocr-whitelist-fix.md). |
 
-| 017 / whitelist reset live retest | 2026-10-22 16:50 user report | Not yet documented | Development Items + Materials requested | **USER REPORT: SUCCESS** after OCR whitelist reset; independently audited coverage/handoff pending | Not provided | Not provided | Not provided | Positive live confirmation; obtain actual current GOOD JSON + logs/screenshots to verify all previously missing item names, category transition, counts and quantity OCR. Do not import until audited. |
+| 017 / material category & crop audit | 2026-10-22 16:49–16:55 | Char Dev verified | Char Dev + Materials | **PASS both categories:** 359 Dev; then verified Materials and scanned 199; both stop on end-repeat (not cancelled) | **558 accepted** | **558 GOOD keys** | Dev ~196 s; Materials ~110 s | **FAIL quantity OCR:** full 558-crop manual audit: 431/558 correct (**77.24%**); 127 mismatches (5 uncertain zeros and 122 silent). [EXP-017 report](experiments/EXP-017-material-crop-audit.md). Do not import to live tracker. |
 
 ## Sources and reproducibility
 
@@ -56,7 +56,7 @@
 
 - **EXP 016 actual evidence recovered**: `Experiment 16 actual.zip` contains 12 BEFORE/AFTER full-window pairs, 12 original OCR name crops, and the 16:26 diagnostic log. **12/12 movements selected exactly one adjacent item**, including row wrap. OCR name results empty for **Black Crystal Horn, Heavy Horn, Dead Ley Line Leaves, Chaos Core, Chaos Device** (slots 3, 5, 7, 9, 11), while nameplate images are legible. Source inspection identifies **persistent `tessedit_char_whitelist=0123456789`** set by quantity reads in `OcrService.AnalyzeTextWithConfidence` on reusable pooled Tesseract engines; non-digit reads never cleared it. Reset per OCR call; add one-engine regression test. [Detailed root-cause report](experiments/EXP-016-diagnosis-and-ocr-whitelist-fix.md). Original EXP-016 ZIP from prior ledger entry was stale but superseded by actual ZIP.
 
-- **EXP 017 preliminary report:** At 16:50 local, user reported “Success! It works!” after testing the pooled Tesseract whitelist reset fix. This is user-reported live validation; no EXP-017 GOOD export, debug log or screenshots yet supplied for an independent completeness or quantity audit. Await direct evidence before confirming both inventory categories, exact counts or OCR precision.
+- **EXP 017 audited:** `Experiment 17.zip` and `genshinData_GOOD_2026_10_22_16_55.json` contain current logs, **359 Char Dev** and **199 ordinary Materials** OCR/name scans, both without cancellation; GOOD holds **558 keys**. 558 individual cropped quantity screenshots all reviewed against GOOD: **157/199** ordinary Material counts and **274/359** Char Dev counts agree; **431/558 (77.24%)** overall. 127 wrong (122 silent, 5 zero from uncertainty). Major error examples: `ChaosGear` 3906 instead of crop 356, `RawMeat` 104 instead of 704, and `RainbowdropCrystal` 91 instead of 37. See [EXP-017 detailed audit](experiments/EXP-017-material-crop-audit.md). Historical V3.2 565-material baseline overlaps on 550 names and has 15 older-only (including Mora) and 8 current-only names; not definitive coverage ground truth.
 
 ## Interpretation
 
@@ -64,7 +64,7 @@ The **initial controller tab verification feature** has passed two artifact-only
 
 ## Next experiment
 
-**EXP 017 evidence audit.** User reports success. Collect its current GOOD export and the true process log/screenshots, then verify previously omitted names (Black Crystal Horn, Heavy Horn, Dead Ley Line Leaves, Chaos Core, Chaos Device), full Development Item coverage, handoff and ordinary Materials, and weighted quantity OCR against captures. Confirm zero-quantity uncertainties; do not import unverified test data into the live tracker.
+**018 — Quantity OCR accuracy fix, then character-phase work.** Using the 558 fresh crop/reference pairs and weighted OCR debug logs, investigate why digit shapes 5→9, 7→1, 3→9, and dropped digits repeatedly achieve wrong consensus. Implement offline regression validation against actual screenshots and preserve the fixed name-recognition/controller behaviour. Separately test character roster. Defer speed optimization and disabling EXP016 before/after captures until correctness is established. No experimental GOOD in live tracker.
 
 ## Updating this ledger
 
