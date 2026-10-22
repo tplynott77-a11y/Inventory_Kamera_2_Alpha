@@ -73,22 +73,38 @@ namespace InventoryKamera
             // Blocks efficiently until an engine is free, instead of busy-polling with Thread.Sleep.
             TesseractEngine e = engines.Take();
 
-            if (numbersOnly) e.SetVariable("tessedit_char_whitelist", "0123456789");
-            using (var pix = BitmapToPix(bitmap))
-            using (var page = e.Process(pix, pageMode))
+            try
             {
-                using (var iter = page.GetIterator())
+                // EXP-016 ROOT CAUSE: TesseractEngine instances are pooled, and
+                // SetVariable persists across calls. A quantity read sets a
+                // DIGITS-ONLY whitelist. Without clearing it, subsequent item
+                // names assigned to the same engine return empty text even when
+                // their captured image is perfectly legible. Always explicitly
+                // restore the unrestricted alphabet for ordinary OCR.
+                if (!e.SetVariable("tessedit_char_whitelist", numbersOnly ? "0123456789" : ""))
+                    throw new InvalidOperationException("Could not configure Tesseract character whitelist.");
+
+                using (var pix = BitmapToPix(bitmap))
+                using (var page = e.Process(pix, pageMode))
                 {
-                    iter.Begin();
-                    do
+                    using (var iter = page.GetIterator())
                     {
-                        text += iter.GetText(PageIteratorLevel.TextLine);
+                        iter.Begin();
+                        do
+                        {
+                            text += iter.GetText(PageIteratorLevel.TextLine);
+                        }
+                        while (iter.Next(PageIteratorLevel.TextLine));
                     }
-                    while (iter.Next(PageIteratorLevel.TextLine));
+                    confidence = page.GetMeanConfidence();
                 }
-                confidence = page.GetMeanConfidence();
             }
-            engines.Add(e);
+            finally
+            {
+                // Never silently shrink the OCR pool if conversion or processing
+                // throws. A borrowed engine always goes back to the pool.
+                engines.Add(e);
+            }
 
             return (text, confidence);
         }
