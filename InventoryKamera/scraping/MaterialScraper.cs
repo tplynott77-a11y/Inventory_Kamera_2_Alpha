@@ -399,6 +399,16 @@ namespace InventoryKamera
 			int consecutiveEmptyReads = 0;
 			const int maxConsecutiveEmptyReads = 3;
 			bool loggedPostScrollShot = false;
+            // Experiment 016: capture BEFORE/AFTER each of the first 12 grid
+            // commands when screenshots are enabled. Preserve every pulse's
+            // actual timing and do not introduce any new input commands.
+            const int navigationDiagnosticSteps = 12;
+            if (scanSettings.LogScreenshots)
+                Logger.Info("V4 NAV EXP016 diagnostic images: {0}",
+                    System.IO.Path.GetFullPath(
+                        inventoryPage == InventoryPage.CharacterDevelopmentItems
+                            ? "./logging/Materials/CharacterDevelopmentItems/navigation_samples"
+                            : "./logging/Materials/navigation_samples"));
 			// Detected once per row (at column 0) and reused for all 10 columns -- every quantity in a
 			// row shares one band. Falls back to the fixed estimate inside DetectRowQuantityBand.
 			double rowQuantityTop = ExpectedRowQuantityTop(0);
@@ -488,11 +498,28 @@ namespace InventoryKamera
 				}
 
                 var timing = MaterialGridStepTiming(Navigation.GetDelay());
-                if (observedSlots <= 12)
-                    Logger.Info("V4 NAV step after slot {0}: Right pulse={1} ms, neutral={2} ms",
-                        observedSlots, timing.HoldMs, timing.SettleMs);
+                bool diagnoseStep = scanSettings.LogScreenshots &&
+                    observedSlots <= navigationDiagnosticSteps;
+                if (diagnoseStep)
+                {
+                    Logger.Info("V4 NAV EXP016 step {0}: BEFORE RIGHT; expected selected grid r{1} c{2}; {3}ms hold / {4}ms neutral",
+                        observedSlots, globalRow, column, timing.HoldMs, timing.SettleMs);
+                    using (Bitmap before = Navigation.CaptureWindow())
+                        SaveInventoryBitmap(before,
+                            $"navigation_samples/step_{observedSlots:D2}_BEFORE.png");
+                }
+
                 controller.MoveStep(GameController.MenuDirection.Right,
                     holdMs: timing.HoldMs, settleMs: timing.SettleMs);
+
+                if (diagnoseStep)
+                {
+                    Logger.Info("V4 NAV EXP016 step {0}: AFTER RIGHT; expecting exactly one selection advance",
+                        observedSlots);
+                    using (Bitmap after = Navigation.CaptureWindow())
+                        SaveInventoryBitmap(after,
+                            $"navigation_samples/step_{observedSlots:D2}_AFTER.png");
+                }
 
 				column++;
 				if (column >= itemsPerRow)
