@@ -34,10 +34,10 @@ namespace InventoryKamera.Tests
         }
 
         [Fact]
-        public void TwoActualReadsRequiredEvenWhenGrayscaleHasDoubleWeight()
+        public void TwoActualReadsRequiredEvenForPrimaryFilteredView()
         {
             var votes = new MaterialQuantityVotes();
-            votes.Record("6", 2);
+            votes.Record("6", 3);
             Assert.False(votes.TryGetConsensus(out _));
             votes.Record("6", 1);
             Assert.True(votes.TryGetConsensus(out int answer));
@@ -68,15 +68,49 @@ namespace InventoryKamera.Tests
         [Fact]
         public void BothPreprocessingViewsRunAtEveryScaleWithoutEarlyExit()
         {
-            // Every pair: filtered then clean grayscale. The first filtered
-            // result is wrong but parsable; repeated clean grayscale wins.
+            // Every pair: filtered then clean grayscale. The filtered
+            // view is the more accurate source on actual V4 controller crops.
             var ocr = new QueueOcr("4", "6", "4", "6", "4", "6", "4", "6", "4", "6");
             var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
             using (var image = new Bitmap(195, 44))
-                Assert.Equal(6, reader.Read(image));
+                Assert.Equal(4, reader.Read(image));
             Assert.Equal(10, ocr.Calls);
             Assert.All(ocr.Modes, m => Assert.Equal(PageSegMode.SingleWord, m));
             Assert.All(ocr.NumericModes, m => Assert.True(m));
+        }
+
+        [Fact]
+        public void EXP017_CrystalChunk_TrustsFiveCorrectFilteredVotes()
+        {
+            // Screenshot: 25. The grayscale model consistently read 29.
+            var ocr = new QueueOcr("25", "29", "25", "29", "25", "29",
+                "25", "29", "25", "29");
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            using var crop = new Bitmap(195, 44);
+            Assert.Equal(25, reader.Read(crop));
+        }
+
+        [Fact]
+        public void EXP017_RawMeat_DoesNotFavorConsistentlyWrongGrayscale()
+        {
+            // Screenshot: 704. The secondary view read 104 tenaciously.
+            var ocr = new QueueOcr("704", "104", "704", "104", "704", "104",
+                "704", "104", "704", "104");
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            using var crop = new Bitmap(195, 44);
+            Assert.Equal(704, reader.Read(crop));
+        }
+
+        [Fact]
+        public void EXP017_ChaosGear_RejectsGrayscaleInsertedDigits()
+        {
+            // Screenshot: 356; grayscale fabricated 3906/396, while the
+            // filtered view recovered 356 at three of five scales.
+            var ocr = new QueueOcr("", "3906", "", "396", "356", "3906",
+                "356", "396", "356", "3906");
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            using var crop = new Bitmap(195, 44);
+            Assert.Equal(356, reader.Read(crop));
         }
 
         [Fact]
