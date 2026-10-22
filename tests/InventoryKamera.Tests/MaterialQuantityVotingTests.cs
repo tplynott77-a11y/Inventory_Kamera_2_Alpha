@@ -71,7 +71,7 @@ namespace InventoryKamera.Tests
             // Every pair: filtered then clean grayscale. The filtered
             // view is the more accurate source on actual V4 controller crops.
             var ocr = new QueueOcr("4", "6", "4", "6", "4", "6", "4", "6", "4", "6");
-            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor(), verifyByShape: false);
             using (var image = new Bitmap(195, 44))
                 Assert.Equal(4, reader.Read(image));
             Assert.Equal(10, ocr.Calls);
@@ -85,7 +85,7 @@ namespace InventoryKamera.Tests
             // Screenshot: 25. The grayscale model consistently read 29.
             var ocr = new QueueOcr("25", "29", "25", "29", "25", "29",
                 "25", "29", "25", "29");
-            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor(), verifyByShape: false);
             using var crop = new Bitmap(195, 44);
             Assert.Equal(25, reader.Read(crop));
         }
@@ -96,7 +96,7 @@ namespace InventoryKamera.Tests
             // Screenshot: 704. The secondary view read 104 tenaciously.
             var ocr = new QueueOcr("704", "104", "704", "104", "704", "104",
                 "704", "104", "704", "104");
-            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor(), verifyByShape: false);
             using var crop = new Bitmap(195, 44);
             Assert.Equal(704, reader.Read(crop));
         }
@@ -108,7 +108,7 @@ namespace InventoryKamera.Tests
             // filtered view recovered 356 at three of five scales.
             var ocr = new QueueOcr("", "3906", "", "396", "356", "3906",
                 "356", "396", "356", "3906");
-            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor(), verifyByShape: false);
             using var crop = new Bitmap(195, 44);
             Assert.Equal(356, reader.Read(crop));
         }
@@ -117,10 +117,48 @@ namespace InventoryKamera.Tests
         public void SingleParsableReadIsInsufficient()
         {
             var ocr = new QueueOcr("9", "", "", "", "", "", "", "", "", "");
-            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor(), verifyByShape: false);
             using (var image = new Bitmap(195, 44))
                 Assert.Equal(0, reader.Read(image));
             Assert.Equal(10, ocr.Calls);
+        }
+
+        [Fact]
+        public void ShapeCanOverrideIncorrectWeightedOcrWithTwoIndependentReads()
+        {
+            Assert.Equal(25, MaterialQuantityVotingReader.ConfirmByShape(
+                25, new[] { "29", "29", "29", "25", "29", "29", "25" }));
+            Assert.Equal(704, MaterialQuantityVotingReader.ConfirmByShape(
+                704, new[] { "104", "704", "104", "704" }));
+        }
+
+        [Fact]
+        public void ShapeDisagreementOrSingleSupportingReadRequiresReview()
+        {
+            Assert.Equal(0, MaterialQuantityVotingReader.ConfirmByShape(
+                356, new[] { "3906", "396", "3906", "356" }));
+            Assert.Equal(0, MaterialQuantityVotingReader.ConfirmByShape(
+                0, new[] { "356", "356", "356" }));
+            Assert.Equal(0, MaterialQuantityVotingReader.ConfirmByShape(
+                5, new[] { "9", "9", "9", "9" }));
+        }
+
+        [Fact]
+        public void DefaultReaderWillNotExportUnverifiedDigits()
+        {
+            var ocr = new QueueOcr("25", "25", "25", "25", "25",
+                "25", "25", "25", "25", "25");
+            var reader = new MaterialQuantityVotingReader(ocr, new ImageProcessor());
+            using var blank = new Bitmap(195, 44);
+            Assert.Equal(0, reader.Read(blank));
+            Assert.Equal(10, ocr.Calls);
+        }
+
+        [Fact]
+        public void UnvalidatedCropSizesFailClosed()
+        {
+            using var crop = new Bitmap(98, 22);
+            Assert.Equal(0, MaterialDigitShapeReader.Read(crop));
         }
 
         private sealed class QueueOcr : IOcrService
