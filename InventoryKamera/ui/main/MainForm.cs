@@ -755,10 +755,19 @@ namespace InventoryKamera
             try
             {
                 var releases = await client.Repository.Release.GetAll("taiwenlee", "Inventory_Kamera");
-                var latest = releases.First();
+                var latest = releases.FirstOrDefault();
+                if (latest == null)
+                {
+                    Logger.Warn("Skipping Kamera update check: no releases were returned.");
+                    return;
+                }
 
 
-                Version latestVersion = new Version(Regex.Replace(latest.TagName, "[a-zA-Z]", string.Empty));
+                if (!AppInfo.TryParseReleaseTagVersion(latest.TagName, out Version latestVersion))
+                {
+                    Logger.Warn("Skipping Kamera update check: unsupported GitHub release tag '{0}'.", latest.TagName);
+                    return;
+                }
                 Version currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
                 if (currentVersion.CompareTo(latestVersion) < 0)
                 {
@@ -773,6 +782,12 @@ namespace InventoryKamera
                 }
             }
             catch (RateLimitExceededException) { Logger.Warn("Rate limit exceeded checking for Kamera Update!!!! This warning should be resolved in an hour."); }
+            catch (Exception ex)
+            {
+                // Update checking is optional; a bad tag or transient API failure
+                // must never surface as an unhandled exception on the WinForms UI.
+                Logger.Warn(ex, "Kamera update check failed; continuing without update notification.");
+            }
 
         }
 
