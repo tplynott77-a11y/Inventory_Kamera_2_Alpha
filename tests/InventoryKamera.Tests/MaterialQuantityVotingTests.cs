@@ -170,6 +170,7 @@ namespace InventoryKamera.Tests
         [InlineData("3", "1")]
         [InlineData("7", "1")]
         [InlineData("10", "1")]
+        [InlineData("704", "104")]
         public void EXP020_KnownQuantityDigitMisreadsCanSupportStrongGlyphs(
             string shape, string ocr)
         {
@@ -180,7 +181,7 @@ namespace InventoryKamera.Tests
         [Theory]
         [InlineData("35", "53")]
         [InlineData("356", "3906")]
-        [InlineData("704", "104")]
+        [InlineData("704", "204")]
         [InlineData("677", "65")]
         [InlineData("5", "")]
         [InlineData("5", "abc")]
