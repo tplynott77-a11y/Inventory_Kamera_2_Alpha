@@ -17,6 +17,8 @@
 
 | 013 / Repeated mixed category | 2026-10-22 15:05 export | Unverified | Char Dev + Materials requested | **FAIL / navigation-invalid**: user observes alternate skipping; phase log missing | Unknown (181 distinct) | **181 Dev / 0 ordinary Materials** | Unverified | Identical 181 keys/order to 012, 158/177 V3.2 reference adjacent transitions advance by +2; three exported 0 quantities. ZIP byte-identical to 012 (223 PNGs + logs). **Do not score OCR.** |
 
+| 015 / 45ms stick pulse video | 2026-10-22 afternoon | Dev Items | Dev Items + Materials selected in UI | **FAIL**: alternating omission persists with Normal 45ms hold / 250ms neutral | Partial / canceled | No matching GOOD | Video ~14.87s | Video shows skipped item detail cards *are visibly displayed*, e.g. Foreign Synapse / Operative's Constancy / Old Operative's Pocket Watch. Could be two moves per pulse OR capture/recognition timing; do not assume one without synchronized pulse log. `ChaosGear` OCR error seen. |
+
 ## Sources and reproducibility
 
 - Experiment 008 logs: `logging artifacts stating on weapons.zip`; output: `genshinData_GOOD_2026_10_22_12_28.json`.
@@ -42,13 +44,15 @@
 
 - Experiment 013: `Experiment 13.zip`, `genshinData_GOOD_2026_10_22_15_05.json`; full report [EXP-013 navigation-invalid](experiments/EXP-013-navigation-invalid-mixed-scan.md). **Same 181 exported item names/order as 012**, eight quantities changed; three 0 counts. The ZIP has the **same 229 file contents as the Experiment 012 ZIP** (all 223 PNGs old), and no 15:05 scan log. Independently checking against historical V3.2 ordering, 158 of 177 comparable adjacent index jumps skip exactly one item. User again reports Materials category not scanned. OCR voting remains untested against fresh saved crops.
 
+- Experiment 015 video: `IMG_2671.mp4` (14.87s phone recording), [video evidence report](experiments/EXP-015-video-evidence-material-navigation.md). Genshin visibly highlights items that EXP 012/013 omitted, showing a *scanner capture-versus-selection mismatch*, not proof that the cursor never visited these cells. Both Dev Items and Materials checked in UI; `ChaosGear` quantity parsing error visible. Distinguish **multiple physical grid advances per command** from **missing/stale OCR sampling** using synchronized per-pulse logging before additional timing adjustments.
+
 ## Interpretation
 
 The **initial controller tab verification feature** has passed two artifact-only test cases and now has a third *navigation-recovery* success in Materials-only scanning. Experiment 010 exposed an early repeat-triggered stop (7 exported), while Experiment 011 (delay 1) navigated 199 materials but produced 15 screenshot-confirmed quantity errors. A repeat now appeared at the very end, which is consistent with reaching the last item but does not independently prove full coverage. These results do *not* validate complete material inventory coverage, mixed scans, quantity OCR, character roster handling, or absence of occasional controller-selection timing errors. V4 is still experimental. The fully validated V3.2 inventory/farming tracker should not be overwritten with test scans.
 
 ## Next experiment
 
-**014 — Navigation gate, not another OCR trial.** On a clean single-instance V4 run at Normal delay 1, validate one movement per input across only the first 10–12 Character Development Items. Stop if alternation recurs. Once this passes, test transition to Materials separately, verifying new screenshots and correct runtime `./logging` directory. Do not score new OCR voting until complete navigation and fresh captures are verified. Fast controller timing and OCR voting stay unchanged.
+**016 — Instrumented single-pulse diagnostic.** Capture exact right-pulse timestamps and card/nameplate frames before and after a *single* 45ms analogue input, with only 5–10 steps on Char Dev Items. Disambiguate “two UI advances per pulse” versus “one UI advance but OCR/selection capture misses every other card”. Do not rerun full inventory or change controller timing/OCR blindly; keep experimental GOOD off live tracker.
 
 ## Updating this ledger
 
