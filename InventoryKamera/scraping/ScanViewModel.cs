@@ -366,7 +366,7 @@ namespace InventoryKamera
                 materialQuantityImage?.Dispose();
                 materialQuantityImage = quantityClone;
             }
-            materialText = $"Name: {name}\nCount: {count}";
+            materialText = $"Name: {name}{Environment.NewLine}Count: {count}";
             Interlocked.Increment(ref materialCount);
             MaterialChanged?.Invoke();
             CountersChanged?.Invoke();
