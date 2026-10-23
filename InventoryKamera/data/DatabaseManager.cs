@@ -625,9 +625,16 @@ namespace InventoryKamera
 
                 // Re-apply the preserved, manually-maintained ConstellationOrder over whatever the
                 // automated build above computed for Traveler -- see this method's top for why.
-                if (preservedTravelerConstellationOrder != null && newData.TryGetValue("traveler", out var travelerEntry))
+                if (newData.TryGetValue("traveler", out var travelerEntry))
                 {
-                    travelerEntry["ConstellationOrder"] = preservedTravelerConstellationOrder;
+                    if (preservedTravelerConstellationOrder != null)
+                        travelerEntry["ConstellationOrder"] = preservedTravelerConstellationOrder;
+
+                    // EXP-024: preserve manual per-element mappings, but ensure
+                    // that a fresh OR preserved 7.1 DB has Cryo C3=burst/C5=skill.
+                    // Safe even if the game-data source still omits Cryo.
+                    if (CharacterScanRecognition.EnsureCryoTravelerMetadata(travelerEntry))
+                        Logger.Info("EXP024 added/repaired Cryo Traveler data during character database update.");
                 }
             }
             catch (Exception ex)
