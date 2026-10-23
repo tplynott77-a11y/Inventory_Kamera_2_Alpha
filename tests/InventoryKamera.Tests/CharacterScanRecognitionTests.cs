@@ -40,6 +40,18 @@ namespace InventoryKamera.Tests
         }
 
         [Theory]
+        [InlineData("Traveler", "Cryo", true)]
+        [InlineData("Traveler", "Pyro", false)]
+        [InlineData("Manequin2", "Cryo", false)]
+        [InlineData("Farty_Pants", "Cryo", false)]
+        [InlineData("Kinich", "Dendro", false)]
+        public void EXP024_OnlyCanonicalCryoTravelerHasElementOverride(
+            string canonicalName, string element, bool expected)
+        {
+            Assert.Equal(expected, CharacterScanRecognition.IsObservedCryoTraveler(canonicalName, element));
+        }
+
+        [Theory]
         [InlineData("Traveler", "cryaq", "", "cryo")]
         [InlineData("Traveler", "gryo", "", "cryo")]
         [InlineData("Kaeya", "gryo", "", "")]
