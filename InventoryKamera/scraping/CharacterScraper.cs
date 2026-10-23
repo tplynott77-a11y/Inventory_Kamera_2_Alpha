@@ -370,6 +370,14 @@ namespace InventoryKamera
                 }
 
                 if (!targeted && maxToScan != 0 && Characters.Count >= maxToScan) break;
+                // Prevent an unreadable wraparound name or an invalid target
+                // from trapping the experimental named mode in an endless lap.
+                if (targeted && physicalSlot >= 120)
+                {
+                    progressReporter.AddError("Named-character scan exceeded 120 roster slots without a verified wrap. Stopping safely.");
+                    Logger.Warn("EXP024 NAMED_SCAN reached bounded 120-slot guard.");
+                    break;
+                }
 				if (GameScanner.CancelRequested)
 				{
 					Logger.Info("Stopping character scan: cancel requested");
