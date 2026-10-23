@@ -351,6 +351,18 @@ namespace InventoryKamera.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string SpecificCharacterNames {
+            get {
+                return ((string)(this["SpecificCharacterNames"]));
+            }
+            set {
+                this["SpecificCharacterNames"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("Manequin1")]
         public string Manequin1Name {
             get {
