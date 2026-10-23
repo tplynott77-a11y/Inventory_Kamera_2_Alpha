@@ -35,6 +35,19 @@ namespace InventoryKamera
             return ascension >= 0 && ascension <= 3 && rawAuto > 7;
         }
 
+        /// <summary>
+        /// EXP-024 diagnostic-only formatting: preserve OCR row boundaries in a
+        /// bounded single-line log field. Never influences recognition decisions.
+        /// </summary>
+        internal static string CompactOcrDiagnostic(string raw, int limit = 440)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "(empty)";
+            string compact = Regex.Replace(raw.Replace("\r", ""), @"[ \t]+", " ")
+                .Replace("\n", " | ").Trim();
+            if (limit < 1) throw new ArgumentOutOfRangeException(nameof(limit));
+            return compact.Length <= limit ? compact : compact.Substring(0, limit) + "...";
+        }
+
         internal static bool SaysActivated(string text) =>
             !string.IsNullOrWhiteSpace(text) &&
             Regex.IsMatch(text, @"\bactivated\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
