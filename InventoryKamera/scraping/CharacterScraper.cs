@@ -477,7 +477,21 @@ namespace InventoryKamera
 		{
 			string currentName = null, currentElement = null;
 			string rawHeaderOcr = ScanNameAndElement(ref currentName, ref currentElement, maxAttempts: 5);
-			if (currentName == character.NameGOOD) return true;
+            if (string.Equals(currentName, character.NameGOOD, StringComparison.Ordinal) &&
+                string.Equals(currentElement, character.Element, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // EXP-024 observed genuine Kinich/Chiori talent screens whose
+            // readable headers were rejected by the primary 110-threshold OCR.
+            // The fallback is only for verification, and only an EXACT element
+            // plus on-screen display-name match can unlock the talent read.
+            string alternateOcr;
+            if (TryVerifyExpectedHeaderWithAlternateOcr(character, out alternateOcr))
+            {
+                Logger.Info("EXP024 HEADER_ALTERNATE_ACCEPT expected={0} element={1} rawOCR=\"{2}\"",
+                    character.NameGOOD, character.Element, alternateOcr);
+                return true;
+            }
 
 			Logger.Warn("EXP024 HEADER_FAILURE phase={0} expected={1} actual={2} expectedElement={3} actualElement={4} rawOCR=\"{5}\" -- skipping character.",
                 phaseLabel, character.NameGOOD, currentName ?? "(unreadable)", character.Element,
@@ -489,6 +503,52 @@ namespace InventoryKamera
             progressReporter.AddError($"{phaseLabel} header verification failed for {character.NameGOOD}; check diagnostic screenshots.");
             return false;
 		}
+
+        /// <summary>
+        /// EXP-024 verification-only rescue for readable headers rejected by
+        /// the legacy 110-threshold text recognizer. A different character
+        /// MUST NOT be accepted by fuzzy matching, substring lookup, or by
+        /// merely trusting the controller's roster position.
+        /// </summary>
+        private bool TryVerifyExpectedHeaderWithAlternateOcr(Character character, out string evidence)
+        {
+            evidence = "(empty)";
+            string lookupKey = character.NameGOOD.Contains("Traveler")
+                ? "traveler" : character.NameGOOD.ToLowerInvariant();
+            string displayName = character.NameGOOD;
+            if (GenshinProcesor.Characters.TryGetValue(lookupKey, out var record) &&
+                record["CustomName"] != null)
+                displayName = (string)record["CustomName"];
+
+            using (Bitmap original = Navigation.CaptureRegion(NameElementRegion()))
+            {
+                foreach (int threshold in new[] { 175, 210 })
+                {
+                    Bitmap processed = imagePreprocessor.ConvertToGrayscale(original);
+                    try
+                    {
+                        imagePreprocessor.SetThreshold(threshold, ref processed);
+                        imagePreprocessor.SetInvert(ref processed);
+                        using (Bitmap scaled = GenshinProcesor.ResizeImage(processed,
+                                   processed.Width * 2, processed.Height * 2))
+                        {
+                            foreach (var mode in new[] { Tesseract.PageSegMode.SingleLine, Tesseract.PageSegMode.Auto })
+                            {
+                                string raw = ocrService.AnalyzeText(scaled, mode)?.Trim() ?? "";
+                                evidence = CharacterScanRecognition.CompactOcrDiagnostic(raw);
+                                if (CharacterScanRecognition.ExactHeaderMatches(raw, character.Element, displayName))
+                                    return true;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        processed?.Dispose();
+                    }
+                }
+            }
+            return false;
+        }
 
 		/// <summary>
 		/// The always-visible name/element header region on the Character screen. Shared by
