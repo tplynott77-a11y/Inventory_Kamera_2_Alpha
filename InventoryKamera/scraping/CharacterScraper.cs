@@ -476,11 +476,12 @@ namespace InventoryKamera
 		private bool VerifyOnExpectedCharacter(Character character, string phaseLabel)
 		{
 			string currentName = null, currentElement = null;
-			ScanNameAndElement(ref currentName, ref currentElement, maxAttempts: 5);
+			string rawHeaderOcr = ScanNameAndElement(ref currentName, ref currentElement, maxAttempts: 5);
 			if (currentName == character.NameGOOD) return true;
 
-			Logger.Warn("{0} scan expected \"{1}\" but the selected slot reads \"{2}\" -- skipping this character.",
-                phaseLabel, character.NameGOOD, currentName ?? "(unreadable)");
+			Logger.Warn("EXP024 HEADER_FAILURE phase={0} expected={1} actual={2} expectedElement={3} actualElement={4} rawOCR=\"{5}\" -- skipping character.",
+                phaseLabel, character.NameGOOD, currentName ?? "(unreadable)", character.Element,
+                currentElement ?? "(unreadable)", CharacterScanRecognition.CompactOcrDiagnostic(rawHeaderOcr));
             // EXP-021: six characters silently acquired zero talents here.
             // Preserve the actual screen even with normal screenshot logging off.
             LogCharacterScreenshot(character.NameGOOD, $"diagnostics/{phaseLabel}_verification_failed", NameElementRegion(), force: true);
@@ -1095,6 +1096,11 @@ namespace InventoryKamera
 
 			const int requiredRows = 3;
 			int attempt = 0;
+            // EXP-024: evidence-only telemetry to distinguish OCR rows missing,
+            // impossible-level rejection and phase header verification failures.
+            int mostRowsSeen = 0;
+            int impossibleAutoRejects = 0;
+            string firstRawOcr = null, lastRawOcr = null;
 
 			while (attempt < 20) // reduced from 50 per user (2026-07-05), matching ScanNameAndElement/ScanLevel's cap
 			{
@@ -1110,7 +1116,11 @@ namespace InventoryKamera
 				imagePreprocessor.SetContrast(60, ref n);
 				imagePreprocessor.SetInvert(ref n);
 
-				var lines = ocrService.AnalyzeText(n, Tesseract.PageSegMode.SingleBlock).Trim().Split('\n');
+				string rawTalentOcr = ocrService.AnalyzeText(n, Tesseract.PageSegMode.SingleBlock).Trim();
+                string diagnostic = CharacterScanRecognition.CompactOcrDiagnostic(rawTalentOcr);
+                if (attempt == 0) firstRawOcr = diagnostic;
+                lastRawOcr = diagnostic;
+                var lines = rawTalentOcr.Split('\n');
 
 				var levels = new List<int>();
 				foreach (var line in lines)
@@ -1120,9 +1130,11 @@ namespace InventoryKamera
 						levels.Add(lvl);
 				}
 
-				if (levels.Count >= requiredRows &&
+				mostRowsSeen = Math.Max(mostRowsSeen, levels.Count);
+                if (levels.Count >= requiredRows &&
                     CharacterScanRecognition.ImpossibleLowAscensionAuto(character.Ascension, levels[0]))
                 {
+                    impossibleAutoRejects++;
                     Logger.Warn("EXP023 {0}: rejected impossible Normal Attack Lv.{1} at ascension {2}.",
                         character.NameGOOD, levels[0], character.Ascension);
                     // Preserve the first suspicious frame for diagnosis. Retries
@@ -1138,6 +1150,8 @@ namespace InventoryKamera
                     talents["auto"] = levels[0];
 					talents["skill"] = levels[1];
 					talents["burst"] = levels[2];
+                    Logger.Info("EXP024 TALENT_SUCCESS character={0} attempt={1} rows={2} scanned={3}/{4}/{5} rawOCR=\"{6}\"",
+                        character.NameGOOD, attempt + 1, levels.Count, levels[0], levels[1], levels[2], diagnostic);
 
 					progressReporter.SetCharacter_Talent(bm, talents["auto"].ToString(), 0);
 					progressReporter.SetCharacter_Talent(bm, talents["skill"].ToString(), 1);
@@ -1163,7 +1177,9 @@ namespace InventoryKamera
 			// the failure is diagnosable even with LogScreenshots off.
 			if (talents["auto"] < 1 || talents["skill"] < 1 || talents["burst"] < 1)
 			{
-				progressReporter.AddError($"EXP023 could not read {character.NameGOOD}'s combat talents: zero is a review sentinel, not an in-game level.");
+				Logger.Warn("EXP024 TALENT_FAILURE character={0} attempts={1} maxRows={2} impossibleAutoRejects={3} firstOCR=\"{4}\" lastOCR=\"{5}\"",
+                    character.NameGOOD, attempt, mostRowsSeen, impossibleAutoRejects, firstRawOcr ?? "(not captured)", lastRawOcr ?? "(not captured)");
+                progressReporter.AddError($"EXP024 could not read {character.NameGOOD}'s combat talents: zero is a review sentinel, not an in-game level.");
 				LogCharacterScreenshot(character.NameGOOD, "talents_unconfirmed", region, force: true);
                 LogCharacterWindow(character.NameGOOD, "talents_unconfirmed", force: true);
 			}
