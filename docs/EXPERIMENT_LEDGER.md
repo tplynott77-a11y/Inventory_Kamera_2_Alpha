@@ -101,6 +101,8 @@ The **initial controller tab verification feature** has passed two artifact-only
 
 ## Next experiment
 
+**EXP-024 preparation, 2026-10-23 (diagnostics-only, no live scan yet):** Added bounded raw OCR logging to failed character-header checks, successful talent reads and exhausted talent attempts; the latter now records candidate row count and low-ascension sanity rejections. Unit tests cover bounded formatter. **No changes to actual OCR acceptance, navigation, constellation detection or Materials.** Before another run, request only EXP-023 text logs plus screenshots for the eight failures and unrecognized Traveler; inspect them before attempting speculative recognition fixes. [EXP-024 preparation and protocol](experiments/EXP-024-targeted-character-diagnostics.md). **Status: CODE PREPARED / NOT LIVE VERIFIED.**
+
 **024 — targeted character verification diagnosis, no blind source changes.** EXP023 live GOOD restored 63/71 valid-looking talent records, all 71 constellation values match EXP022, Charlotte C4 and Kirara C5 are retained. Inspect EXP023 ZIP's logs and screenshots to localise the eight 0/0/0 talent sets and missing Traveler when ZIP access returns. Confirm whether phase identity checks, broad talent OCR, or C3/C5 guard caused each. Recheck Sayu's EXP022-only A0 vs EXP023 A1. Hold off on character GOOD imports; keep material scanner/archive unchanged.
 
 ## Updating this ledger
