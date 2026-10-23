@@ -54,6 +54,8 @@ namespace InventoryKamera.game
             public string WandererName => inner.WandererName;
             public int SortByObtained => inner.SortByObtained;
             public int NumOfCharToScan => TestCharacterScanCount;
+            // Debug fixed-count path must never inherit opt-in named selection.
+            public string SpecificCharacterNames => "";
             public string Manequin1Name => inner.Manequin1Name;
             public string Manequin2Name => inner.Manequin2Name;
         }
