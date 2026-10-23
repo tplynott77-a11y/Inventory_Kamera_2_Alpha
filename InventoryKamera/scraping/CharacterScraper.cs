@@ -1154,12 +1154,36 @@ namespace InventoryKamera
 				Right:  (int)( 0.8743 * Navigation.GetWidth() ),
 				Bottom: (int)( 0.5687 * Navigation.GetHeight() ));
 
+            // Resolve C3/C5 metadata before OCR so impossible reads are retried
+            // rather than accepted and zeroed afterward (EXP-023 YunJin Lv.3
+            // versus screenshot-confirmed C3-boosted Burst Lv.4).
+            string c3Talent = null, c5Talent = null;
+            if (character.Constellation >= 3 &&
+                !(character.NameGOOD.Contains("Traveler") &&
+                  string.Equals(character.Element, "Pyro", StringComparison.OrdinalIgnoreCase)))
+            {
+                string key = character.NameGOOD.Contains("Traveler")
+                    ? "traveler" : character.NameGOOD.ToLowerInvariant();
+                if (GenshinProcesor.Characters.TryGetValue(key, out var metadata))
+                {
+                    JToken orderToken = metadata["ConstellationOrder"];
+                    if (character.NameGOOD.Contains("Traveler") && orderToken is JObject perElement)
+                        orderToken = perElement[character.Element?.ToLowerInvariant()];
+                    if (orderToken is JArray order && order.Count >= 2)
+                    {
+                        c3Talent = (string)order[0];
+                        c5Talent = (string)order[1];
+                    }
+                }
+            }
+
 			const int requiredRows = 3;
 			int attempt = 0;
             // EXP-024: evidence-only telemetry to distinguish OCR rows missing,
             // impossible-level rejection and phase header verification failures.
             int mostRowsSeen = 0;
             int impossibleAutoRejects = 0;
+            int impossibleBoostRejects = 0;
             string firstRawOcr = null, lastRawOcr = null;
 
 			while (attempt < 20) // reduced from 50 per user (2026-07-05), matching ScanNameAndElement/ScanLevel's cap
@@ -1205,6 +1229,16 @@ namespace InventoryKamera
                         LogCharacterWindow(character.NameGOOD, "talents_suspect", force: true);
                     }
                 }
+                else if (levels.Count >= requiredRows &&
+                    CharacterScanRecognition.ImpossibleConstellationTalentCandidate(
+                        character.Constellation, c3Talent, c5Talent,
+                        levels[0], levels[1], levels[2]))
+                {
+                    impossibleBoostRejects++;
+                    Logger.Warn("EXP024 TALENT_BOOST_RETRY character={0} constellation={1} OCR={2}/{3}/{4} c3={5} c5={6}",
+                        character.NameGOOD, character.Constellation, levels[0], levels[1], levels[2],
+                        c3Talent ?? "(unknown)", c5Talent ?? "(unknown)");
+                }
                 else if (levels.Count >= requiredRows)
                 {
                     talents["auto"] = levels[0];
@@ -1237,8 +1271,8 @@ namespace InventoryKamera
 			// the failure is diagnosable even with LogScreenshots off.
 			if (talents["auto"] < 1 || talents["skill"] < 1 || talents["burst"] < 1)
 			{
-				Logger.Warn("EXP024 TALENT_FAILURE character={0} attempts={1} maxRows={2} impossibleAutoRejects={3} firstOCR=\"{4}\" lastOCR=\"{5}\"",
-                    character.NameGOOD, attempt, mostRowsSeen, impossibleAutoRejects, firstRawOcr ?? "(not captured)", lastRawOcr ?? "(not captured)");
+				Logger.Warn("EXP024 TALENT_FAILURE character={0} attempts={1} maxRows={2} impossibleAutoRejects={3} impossibleBoostRejects={4} firstOCR=\"{5}\" lastOCR=\"{6}\"",
+                    character.NameGOOD, attempt, mostRowsSeen, impossibleAutoRejects, impossibleBoostRejects, firstRawOcr ?? "(not captured)", lastRawOcr ?? "(not captured)");
                 progressReporter.AddError($"EXP024 could not read {character.NameGOOD}'s combat talents: zero is a review sentinel, not an in-game level.");
 				LogCharacterScreenshot(character.NameGOOD, "talents_unconfirmed", region, force: true);
                 LogCharacterWindow(character.NameGOOD, "talents_unconfirmed", force: true);
