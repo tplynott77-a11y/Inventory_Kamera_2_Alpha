@@ -436,7 +436,16 @@ namespace InventoryKamera
 
         internal static bool CharacterMatchesElement(string name, string element)
         {
-            return !string.IsNullOrWhiteSpace(name.ToLower()) && GetCharactersElements(name.ToLower()).Contains(element.ToLower());
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(element))
+                return false;
+
+            // EXP-024 screenshot: Cryo / T_2the_homas77 is the actual Traveler.
+            // Cached character databases may not yet list Cryo among his forms.
+            if (CharacterScanRecognition.IsObservedCryoTraveler(name, element))
+                return true;
+
+            var knownElements = GetCharactersElements(name.ToLowerInvariant());
+            return knownElements != null && knownElements.Contains(element.ToLowerInvariant());
         }
 
         internal static List<string> GetCharactersElements(string name)
