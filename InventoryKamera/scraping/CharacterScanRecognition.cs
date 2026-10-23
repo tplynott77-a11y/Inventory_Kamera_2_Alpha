@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Text.RegularExpressions;
+using Newtonsoft.Json.Linq;
 
 namespace InventoryKamera
 {
@@ -116,6 +117,102 @@ namespace InventoryKamera
                        TalentLevel(c3Talent) < 4) ||
                    (constellation >= 5 && !string.IsNullOrWhiteSpace(c5Talent) &&
                        TalentLevel(c5Talent) < 4);
+        }
+
+        /// <summary>
+        /// EXP-024 follow-up: Cryo Traveler's C3 boosts Burst, C5 boosts Skill.
+        /// Ensure cached and rebuilt character data contain the Cryo entry
+        /// without discarding the manually preserved orders for other elements.
+        /// </summary>
+        internal static bool EnsureCryoTravelerMetadata(JObject traveler)
+        {
+            if (traveler == null) return false;
+            bool changed = false;
+
+            if (traveler["Element"] is JArray elements)
+            {
+                bool hasCryo = false;
+                foreach (JToken value in elements)
+                    if (string.Equals((string)value, "cryo", StringComparison.OrdinalIgnoreCase))
+                        hasCryo = true;
+                if (!hasCryo)
+                {
+                    elements.Add("cryo");
+                    changed = true;
+                }
+            }
+
+            if (traveler["ConstellationOrder"] == null)
+            {
+                traveler["ConstellationOrder"] = new JObject();
+                changed = true;
+            }
+
+            if (traveler["ConstellationOrder"] is JObject orders)
+            {
+                if (!TryReadTalentOrder(orders["cryo"], out string c3, out string c5) ||
+                    c3 != "burst" || c5 != "skill")
+                {
+                    orders["cryo"] = new JArray("burst", "skill");
+                    changed = true;
+                }
+            }
+            // Do not overwrite a malformed legacy flat order: the runtime
+            // resolver below still safely repairs Cryo without deleting
+            // other Traveler elements' mappings.
+            return changed;
+        }
+
+        /// <summary>
+        /// Shared by the pre-OCR C3/C5 plausibility check and the final GOOD
+        /// correction, so they never disagree about which talent is boosted.
+        /// A missing/malformed Cryo Traveler entry is repaired from the
+        /// screenshot-confirmed mapping, NOT from guessed OCR talent values.
+        /// </summary>
+        internal static bool TryResolveConstellationTalentOrder(
+            string goodName, string element, JToken storedOrder,
+            out string c3Talent, out string c5Talent, out bool usedCryoRepair)
+        {
+            c3Talent = null;
+            c5Talent = null;
+            usedCryoRepair = false;
+
+            bool isTraveler = !string.IsNullOrWhiteSpace(element) &&
+                string.Equals(goodName, "Traveler" + element, StringComparison.OrdinalIgnoreCase);
+            JToken selectedOrder = isTraveler
+                ? (storedOrder as JObject)?[element.ToLowerInvariant()]
+                : storedOrder;
+
+            if (isTraveler &&
+                string.Equals(element, "Cryo", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!TryReadTalentOrder(selectedOrder, out string foundC3, out string foundC5) ||
+                    foundC3 != "burst" || foundC5 != "skill")
+                    usedCryoRepair = true;
+
+                c3Talent = "burst";
+                c5Talent = "skill";
+                return true;
+            }
+
+            return TryReadTalentOrder(selectedOrder, out c3Talent, out c5Talent);
+        }
+
+        private static bool TryReadTalentOrder(JToken token, out string c3Talent, out string c5Talent)
+        {
+            c3Talent = null;
+            c5Talent = null;
+            if (!(token is JArray pair) || pair.Count < 2 ||
+                pair[0].Type != JTokenType.String || pair[1].Type != JTokenType.String)
+                return false;
+
+            string c3 = ((string)pair[0]).ToLowerInvariant();
+            string c5 = ((string)pair[1]).ToLowerInvariant();
+            bool IsTalent(string name) => name == "auto" || name == "skill" || name == "burst";
+            if (!IsTalent(c3) || !IsTalent(c5) || c3 == c5) return false;
+            c3Talent = c3;
+            c5Talent = c5;
+            return true;
         }
 
         internal static bool SaysActivated(string text) =>
