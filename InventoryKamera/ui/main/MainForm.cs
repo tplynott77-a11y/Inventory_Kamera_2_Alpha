@@ -104,16 +104,36 @@ namespace InventoryKamera
 
         private void InitializeSpecificCharacterScanButton()
         {
+            // EXP024: the original 101px button at x=200 was crowded/hidden
+            // on the user's 3840x2160 high-DPI screen. Give it a prominent
+            // row in the right column, beside Dev Items / Materials.
             specificCharactersButton = new Button
             {
                 Name = "SpecificCharactersButton",
-                Location = new Point(200, 224),
-                Size = new Size(101, 30),
-                Font = new Font("Segoe UI", 8F),
-                TabIndex = 117
+                Location = new Point(135, 219),
+                Size = new Size(167, 58),
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.MidnightBlue,
+                ForeColor = Color.White,
+                UseVisualStyleBackColor = false,
+                TabIndex = 117,
+                AutoEllipsis = false
             };
+            specificCharactersButton.FlatAppearance.BorderSize = 0;
             specificCharactersButton.Click += (sender, args) => EditSpecificCharacterNames();
             WhatToScanGroupBox.Controls.Add(specificCharactersButton);
+            specificCharactersButton.BringToFront();
+
+            // Guaranteed accessible even if layout is scaled/clipped by
+            // Windows: Options > Scan Specific Characters... opens the same
+            // editor. No new window or scan logic is required.
+            var menuCommand = new ToolStripMenuItem("Scan Specific Characters...")
+            {
+                ShortcutKeys = Keys.Control | Keys.Shift | Keys.C
+            };
+            menuCommand.Click += (sender, args) => EditSpecificCharacterNames();
+            keysToolStripMenuItem.DropDownItems.Add(menuCommand);
             UpdateSpecificCharacterScanButton();
         }
 
@@ -121,7 +141,10 @@ namespace InventoryKamera
         {
             int count = CharacterScanRecognition.ParseRequestedCharacterNames(
                 Properties.Settings.Default.SpecificCharacterNames).Count;
-            specificCharactersButton.Text = count == 0 ? "Specific..." : $"Selected: {count}";
+            specificCharactersButton.Text = count == 0
+                ? "Scan Specific\nCharacters..."
+                : $"Specific Characters\n({count} selected)";
+            specificCharactersButton.AccessibleName = "Scan specific characters";
             ZeroMeansAllTooltips.SetToolTip(specificCharactersButton,
                 count == 0 ? "Select specific characters by exact GOOD name (optional)" :
                 "Named-character mode is ON; click to edit or clear. It overrides All / first-N. This exports ONLY the selected characters.");
@@ -142,8 +165,8 @@ namespace InventoryKamera
                 {
                     Location = new Point(14, 12),
                     Size = new Size(480, 75),
-                    Text = "Enter exact character names separated by commas or new lines.\\n" +
-                        "Examples: Chongyun, Kinich, TravelerCryo.\\n" +
+                    Text = "Enter exact character names separated by commas or new lines.\n" +
+                        "Examples: Chongyun, Kinich, TravelerCryo.\n" +
                         "Names override the All / Chars-to-Scan setting. Clear the box for normal scanning."
                 };
                 var names = new TextBox
