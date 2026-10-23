@@ -1173,15 +1173,9 @@ namespace InventoryKamera
                 string diagnostic = CharacterScanRecognition.CompactOcrDiagnostic(rawTalentOcr);
                 if (attempt == 0) firstRawOcr = diagnostic;
                 lastRawOcr = diagnostic;
-                var lines = rawTalentOcr.Split('\n');
-
-				var levels = new List<int>();
-				foreach (var line in lines)
-				{
-					var match = Regex.Match(line, @"[Ll][Vv]\.?\s*(\d+)");
-					if (match.Success && int.TryParse(match.Groups[1].Value, out int lvl) && lvl >= 1 && lvl <= 15)
-						levels.Add(lvl);
-				}
+                // EXP-024: accepts the observed "Lv: 1" mispunctuation from
+                // Chongyun without relaxing the level range or guessing digits.
+                var levels = CharacterScanRecognition.ParseControllerTalentLevels(rawTalentOcr);
 
 				mostRowsSeen = Math.Max(mostRowsSeen, levels.Count);
                 if (levels.Count >= requiredRows &&
