@@ -493,6 +493,30 @@ namespace InventoryKamera
                 return true;
             }
 
+            // EXP-024: Kinich's failed constellation screenshot shows Kinich,
+            // but the earlier identity read still saw the previous Keqing.
+            // A bounded fresh-frame retry tolerates late game transitions;
+            // never trust roster position or accept a mismatched character.
+            for (int refresh = 0; refresh < 2; refresh++)
+            {
+                Thread.Sleep(InventoryScraper.ScaledControllerDelay(250));
+                string retryName = null, retryElement = null;
+                string retryRaw = ScanNameAndElement(ref retryName, ref retryElement, maxAttempts: 1);
+                if (CharacterScanRecognition.MatchesExpectedCharacter(
+                        character.NameGOOD, character.Element, retryName, retryElement) ||
+                    TryVerifyExpectedHeaderWithAlternateOcr(character, out alternateOcr))
+                {
+                    Logger.Info("EXP024 HEADER_REFRESH_ACCEPT expected={0} element={1} retry={2} rawOCR=\"{3}\"",
+                        character.NameGOOD, character.Element, refresh + 1,
+                        CharacterScanRecognition.CompactOcrDiagnostic(retryRaw));
+                    return true;
+                }
+
+                currentName = retryName;
+                currentElement = retryElement;
+                rawHeaderOcr = retryRaw;
+            }
+
 			Logger.Warn("EXP024 HEADER_FAILURE phase={0} expected={1} actual={2} expectedElement={3} actualElement={4} rawOCR=\"{5}\" -- skipping character.",
                 phaseLabel, character.NameGOOD, currentName ?? "(unreadable)", character.Element,
                 currentElement ?? "(unreadable)", CharacterScanRecognition.CompactOcrDiagnostic(rawHeaderOcr));
