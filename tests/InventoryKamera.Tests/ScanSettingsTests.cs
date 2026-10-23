@@ -86,6 +86,29 @@ namespace InventoryKamera.Tests
         }
 
         [Fact]
+        public void NamedCharacterSelection_ReflectsLiveChangesWithoutChangingCountLimit()
+        {
+            string before = Properties.Settings.Default.SpecificCharacterNames;
+            int oldCount = Properties.Settings.Default.NumOfCharToScan;
+            try
+            {
+                IScanSettings settings = new ScanSettings();
+                Properties.Settings.Default.NumOfCharToScan = 20;
+                Properties.Settings.Default.SpecificCharacterNames = "Chongyun, Kinich";
+                Assert.Equal("Chongyun, Kinich", settings.SpecificCharacterNames);
+                Assert.Equal(20, settings.NumOfCharToScan);
+
+                Properties.Settings.Default.SpecificCharacterNames = "";
+                Assert.Equal("", settings.SpecificCharacterNames);
+            }
+            finally
+            {
+                Properties.Settings.Default.SpecificCharacterNames = before;
+                Properties.Settings.Default.NumOfCharToScan = oldCount;
+            }
+        }
+
+        [Fact]
         public void TravelerName_ReflectsLiveChangesToApplicationSettings()
         {
             string original = Properties.Settings.Default.TravelerName;
