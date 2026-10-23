@@ -40,6 +40,27 @@ namespace InventoryKamera.Tests
         }
 
         [Theory]
+        [InlineData("TravelerCryo", "Cryo", "Traveler", "Cryo", true)]
+        [InlineData("TravelerCryo", "Cryo", "TravelerCryo", "Cryo", true)]
+        [InlineData("TravelerPyro", "Pyro", "Traveler", "Pyro", true)]
+        [InlineData("TravelerCryo", "Cryo", "Traveler", "Pyro", false)]
+        [InlineData("TravelerPyro", "Pyro", "Traveler", "Cryo", false)]
+        [InlineData("TravelerCryo", "Cryo", "Manequin2", "Cryo", false)]
+        [InlineData("TravelerCryo", "Cryo", "Farty_Pants", "Cryo", false)]
+        [InlineData("Kirara", "Dendro", "Mika", "Cryo", false)]
+        [InlineData("Kirara", "Dendro", "Kirara", "Cryo", false)]
+        [InlineData("Kirara", "Dendro", "Kirara", "Dendro", true)]
+        [InlineData("Mika", "Cryo", "Mika", "Cryo", true)]
+        [InlineData("TravelerCryo", "Cryo", null, "Cryo", false)]
+        public void EXP024_VerificationRecognizesCanonicalTravelerButNeverWrongElementOrSlot(
+            string expectedName, string expectedElement,
+            string scannedName, string scannedElement, bool expected)
+        {
+            Assert.Equal(expected, CharacterScanRecognition.MatchesExpectedCharacter(
+                expectedName, expectedElement, scannedName, scannedElement));
+        }
+
+        [Theory]
         [InlineData("Traveler", "Cryo", true)]
         [InlineData("Traveler", "Pyro", false)]
         [InlineData("Manequin2", "Cryo", false)]
