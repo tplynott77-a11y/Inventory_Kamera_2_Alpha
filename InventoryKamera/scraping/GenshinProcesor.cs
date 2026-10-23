@@ -93,6 +93,12 @@ namespace InventoryKamera
 			var listManager = new DatabaseManager();
 
 			Characters = listManager.LoadCharacters();
+            // EXP-024: 7.1 characters.json may lack the playable Cryo
+            // Traveler boost order even when its version is marked current.
+            // Patch only Traveler's in-memory record, preserving other forms.
+            if (Characters.TryGetValue("traveler", out var traveler) &&
+                CharacterScanRecognition.EnsureCryoTravelerMetadata(traveler))
+                Logger.Info("EXP024 repaired in-memory Cryo Traveler metadata (C3 Burst, C5 Skill).");
 			Artifacts = listManager.LoadArtifacts();
 			Weapons = listManager.LoadWeapons();
 			DevItems = listManager.LoadDevItems();
