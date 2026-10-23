@@ -40,6 +40,10 @@ namespace InventoryKamera
 
         private bool running = false;
 
+        // Opt-in exact GOOD-key selection, configured with an explicit dialog.
+        // Empty means retain the established All / first-N scanning behavior.
+        private Button specificCharactersButton;
+
         public MainForm()
         {
             InitializeComponent();
@@ -57,6 +61,7 @@ namespace InventoryKamera
             databaseManager = new DatabaseManager();
 
             BindSettings();
+            InitializeSpecificCharacterScanButton();
 
             Language_ComboBox.SelectedItem = "ENG";
 
@@ -95,6 +100,81 @@ namespace InventoryKamera
 #if DEBUG
             menuStrip1.Items.Insert(2, DebugMenuItem);
 #endif
+        }
+
+        private void InitializeSpecificCharacterScanButton()
+        {
+            specificCharactersButton = new Button
+            {
+                Name = "SpecificCharactersButton",
+                Location = new Point(200, 224),
+                Size = new Size(101, 30),
+                Font = new Font("Segoe UI", 8F),
+                TabIndex = 117
+            };
+            specificCharactersButton.Click += (sender, args) => EditSpecificCharacterNames();
+            WhatToScanGroupBox.Controls.Add(specificCharactersButton);
+            UpdateSpecificCharacterScanButton();
+        }
+
+        private void UpdateSpecificCharacterScanButton()
+        {
+            int count = CharacterScanRecognition.ParseRequestedCharacterNames(
+                Properties.Settings.Default.SpecificCharacterNames).Count;
+            specificCharactersButton.Text = count == 0 ? "Specific..." : $"Selected: {count}";
+            ZeroMeansAllTooltips.SetToolTip(specificCharactersButton,
+                count == 0 ? "Select specific characters by exact GOOD name (optional)" :
+                "Named-character mode is ON; click to edit or clear. It overrides All / first-N. This exports ONLY the selected characters.");
+        }
+
+        private void EditSpecificCharacterNames()
+        {
+            using (var dialog = new Form())
+            {
+                dialog.Text = "Scan specific characters (experimental)";
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dialog.MaximizeBox = false;
+                dialog.MinimizeBox = false;
+                dialog.ClientSize = new Size(510, 280);
+
+                var description = new Label
+                {
+                    Location = new Point(14, 12),
+                    Size = new Size(480, 75),
+                    Text = "Enter exact character names separated by commas or new lines.\\n" +
+                        "Examples: Chongyun, Kinich, TravelerCryo.\\n" +
+                        "Names override the All / Chars-to-Scan setting. Clear the box for normal scanning."
+                };
+                var names = new TextBox
+                {
+                    Location = new Point(14, 90),
+                    Size = new Size(480, 125),
+                    Multiline = true,
+                    ScrollBars = ScrollBars.Vertical,
+                    Text = Properties.Settings.Default.SpecificCharacterNames ?? ""
+                };
+                var ok = new Button
+                {
+                    Text = "Save selection", DialogResult = DialogResult.OK,
+                    Location = new Point(273, 230), Size = new Size(120, 32)
+                };
+                var cancel = new Button
+                {
+                    Text = "Cancel", DialogResult = DialogResult.Cancel,
+                    Location = new Point(404, 230), Size = new Size(90, 32)
+                };
+                dialog.Controls.AddRange(new Control[] { description, names, ok, cancel });
+                dialog.AcceptButton = ok;
+                dialog.CancelButton = cancel;
+
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    Properties.Settings.Default.SpecificCharacterNames = names.Text.Trim();
+                    Properties.Settings.Default.Save();
+                    UpdateSpecificCharacterScanButton();
+                }
+            }
         }
 
         // Binds the settings-backed controls to Properties.Settings.Default in code rather than the
