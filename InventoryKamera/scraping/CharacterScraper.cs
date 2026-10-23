@@ -387,7 +387,7 @@ namespace InventoryKamera
 
             if (targeted)
             {
-                foreach (string missing in requestedNames.Except(scanned).OrderBy(v => v))
+                foreach (string missing in requestedNames.Except(scanned, StringComparer.OrdinalIgnoreCase).OrderBy(v => v))
                     progressReporter.AddError($"Named character not found: {missing}. The partial export excludes it.");
                 Logger.Info("EXP024 NAMED_SCAN selected={0}/{1}: {2}",
                     Characters.Count, requestedNames.Count,
@@ -452,15 +452,33 @@ namespace InventoryKamera
 			// rather than assuming count taps), and a partial scan's cursor instead sits gapAfterLast
 			// characters past the last one scanned, so reading backward from there reaches the same
 			// characters a rewind-then-forward pass would, for far fewer shoulder taps.
-            if (endedAtFirstCharacter)
+            if (targeted)
             {
-                // Full named-roster discovery ends at the initial physical
-                // character, not necessarily the first requested target.
-                if (targeted) AdvanceRoster(controller, Xbox360Button.RightShoulder, gapsBeforeEach[0]);
+                bool constellationCompleted;
+                if (endedAtFirstCharacter)
+                {
+                    AdvanceTargetedRoster(controller, Xbox360Button.RightShoulder, gapsBeforeEach[0]);
+                    constellationCompleted = ScanNamedRosterForward(controller, characterList,
+                        gapsBeforeEach, gapAfterLast, ScanConstellation);
+                }
+                else
+                {
+                    constellationCompleted = ScanNamedRosterBackward(controller, characterList,
+                        gapsBeforeEach, gapAfterLast, ScanConstellation);
+                }
+
+                if (!constellationCompleted)
+                {
+                    Logger.Warn("EXP024 NAMED_SCAN constellation navigation incomplete: suppressing Talent pass.");
+                    return;
+                }
+            }
+            else if (endedAtFirstCharacter)
+            {
                 ScanRosterForward(controller, characterList, gapsBeforeEach, gapAfterLast, ScanConstellation);
             }
             else
-				ScanRosterBackward(controller, characterList, gapsBeforeEach, gapAfterLast, ScanConstellation);
+                ScanRosterBackward(controller, characterList, gapsBeforeEach, gapAfterLast, ScanConstellation);
 
 			if (GameScanner.CancelRequested)
 			{
@@ -485,18 +503,27 @@ namespace InventoryKamera
 			controller.Move(GameController.MenuDirection.Down, 1,
 				holdMs: InventoryScraper.ScaledControllerDelay(150), settleMs: InventoryScraper.ScaledControllerDelay(150));
 
-			ScanRosterForward(controller, characterList, gapsBeforeEach, null, character =>
-			{
-				// Same identity check as the constellation pass: confirm the cursor is on this
-				// character before reading talents, so a drifted cursor doesn't record a manequin's or
-				// the wrong character's talent levels.
-				if (!VerifyOnExpectedCharacter(character, "Talent")) return;
+            void ScanTargetTalents(Character character)
+            {
+                if (!VerifyOnExpectedCharacter(character, "Talent")) return;
+                character.Talents = ScanTalents(character);
+                Logger.Info("{0} Talents: {1}", character.NameGOOD,
+                    "{" + string.Join(", ", character.Talents.Select(kv => kv.Key + "=" + kv.Value).ToArray()) + "}");
+                ApplyConstellationTalentScaling(character);
+            }
 
-				character.Talents = ScanTalents(character);
-				Logger.Info("{0} Talents: {1}", character.NameGOOD, "{" + string.Join(", ", character.Talents.Select(kv => kv.Key + "=" + kv.Value).ToArray()) + "}");
-
-				ApplyConstellationTalentScaling(character);
-			});
+            if (targeted)
+            {
+                if (!ScanNamedRosterForward(controller, characterList, gapsBeforeEach, null, ScanTargetTalents))
+                {
+                    Logger.Warn("EXP024 NAMED_SCAN talent navigation incomplete; preserving zero-valued unverified talents.");
+                    return;
+                }
+            }
+            else
+            {
+                ScanRosterForward(controller, characterList, gapsBeforeEach, null, ScanTargetTalents);
+            }
 
 			if (targeted)
 			{
@@ -514,6 +541,113 @@ namespace InventoryKamera
 		/// (never a single multi-position jump), matching how <see cref="ScanCharacters"/>'s
 		/// Phase 1 measured each gap the same way.
 		/// </summary>
+        /// <summary>
+        /// EXP-024 named scans can cross dozens of character slots between
+        /// selected targets. A quick shoulder tap may be dropped by the game,
+        /// so a blind gap count alone cannot prove arrival. Keep ordinary full
+        /// scans unchanged; use a more conservative rhythm for named scans.
+        /// </summary>
+        private void AdvanceTargetedRoster(GameController controller, Xbox360Button button, int taps)
+        {
+            for (int i = 0; i < taps; i++)
+            {
+                if (GameScanner.CancelRequested) return;
+                controller.TapButton(button, InventoryScraper.ScaledControllerDelay(120));
+                Thread.Sleep(InventoryScraper.ScaledControllerDelay(180));
+            }
+        }
+
+        private bool HeaderConfirmsNamedTarget(Character expected)
+        {
+            Thread.Sleep(InventoryScraper.ScaledControllerDelay(250));
+            string foundName = null, foundElement = null;
+            ScanNameAndElement(ref foundName, ref foundElement, maxAttempts: 2);
+            if (CharacterScanRecognition.MatchesExpectedCharacter(
+                expected.NameGOOD, expected.Element, foundName, foundElement))
+                return true;
+            return TryVerifyExpectedHeaderWithAlternateOcr(expected, out _);
+        }
+
+        /// <summary>
+        /// After a long jump, inspect the CURRENT roster slot before touching
+        /// Constellations or Talents. If the game ignored one or more taps,
+        /// search at most three slots each way. Never accept a wrong identity
+        /// and never extrapolate further from a failed anchor.
+        /// </summary>
+        private bool TryReanchorNamedCharacter(
+            GameController controller, Character expected, Xbox360Button intendedDirection)
+        {
+            if (HeaderConfirmsNamedTarget(expected)) return true;
+
+            Xbox360Button opposite = intendedDirection == Xbox360Button.LeftShoulder
+                ? Xbox360Button.RightShoulder : Xbox360Button.LeftShoulder;
+            const int maxCorrection = 3;
+            for (int offset = 1; offset <= maxCorrection; offset++)
+            {
+                if (GameScanner.CancelRequested) return false;
+                AdvanceTargetedRoster(controller, intendedDirection, 1);
+                if (HeaderConfirmsNamedTarget(expected))
+                {
+                    Logger.Warn("EXP024 NAMED_SCAN RESYNC expected={0} direction={1} extraTaps={2}",
+                        expected.NameGOOD, intendedDirection, offset);
+                    return true;
+                }
+            }
+
+            // Return to the initially expected position before probing the
+            // opposite direction. If all probes fail, abort this phase.
+            AdvanceTargetedRoster(controller, opposite, maxCorrection);
+            for (int offset = 1; offset <= maxCorrection; offset++)
+            {
+                if (GameScanner.CancelRequested) return false;
+                AdvanceTargetedRoster(controller, opposite, 1);
+                if (HeaderConfirmsNamedTarget(expected))
+                {
+                    Logger.Warn("EXP024 NAMED_SCAN RESYNC expected={0} direction={1} extraTaps={2}",
+                        expected.NameGOOD, opposite, offset);
+                    return true;
+                }
+            }
+
+            progressReporter.AddError($"Named scan lost roster position near {expected.NameGOOD}; stopping instead of assigning wrong data.");
+            Logger.Error("EXP024 NAMED_SCAN RESYNC_FAILED expected={0} after +/-{1} slots. Aborting remaining passes.",
+                expected.NameGOOD, maxCorrection);
+            return false;
+        }
+
+        private bool ScanNamedRosterBackward(
+            GameController controller, List<Character> characters, List<int> gaps,
+            int gapAfterLast, Action<Character> scanCharacter)
+        {
+            for (int i = characters.Count - 1; i >= 0; i--)
+            {
+                if (GameScanner.CancelRequested) return false;
+                int gap = i == characters.Count - 1 ? gapAfterLast : gaps[i + 1];
+                AdvanceTargetedRoster(controller, Xbox360Button.LeftShoulder, gap);
+                if (!TryReanchorNamedCharacter(controller, characters[i], Xbox360Button.LeftShoulder))
+                    return false;
+                scanCharacter(characters[i]);
+            }
+            return true;
+        }
+
+        private bool ScanNamedRosterForward(
+            GameController controller, List<Character> characters, List<int> gaps,
+            int? gapAfterLast, Action<Character> scanCharacter)
+        {
+            for (int i = 0; i < characters.Count; i++)
+            {
+                if (GameScanner.CancelRequested) return false;
+                if (!TryReanchorNamedCharacter(controller, characters[i], Xbox360Button.RightShoulder))
+                    return false;
+                scanCharacter(characters[i]);
+                int? gap = i < characters.Count - 1 ? gaps[i + 1] : gapAfterLast;
+                if (gap.HasValue)
+                    AdvanceTargetedRoster(controller, Xbox360Button.RightShoulder, gap.Value);
+            }
+            return true;
+        }
+
 		private void AdvanceRoster(GameController controller, Xbox360Button button, int taps)
 		{
 			for (int t = 0; t < taps; t++)
