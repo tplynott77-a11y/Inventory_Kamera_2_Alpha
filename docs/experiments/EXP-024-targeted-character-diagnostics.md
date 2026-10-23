@@ -135,6 +135,28 @@ User provided a full screenshot of the 2.0.0-alpha WinForms main window showing 
 
 **UI-only correction:** button moved into the otherwise free right column beside Dev Items/Materials (`x135,y219,w167,h58`), rendered with a distinct, high-contrast background, two-line label and explicit `BringToFront`. Added a permanent second entry **Options → Scan Specific Characters...** with shortcut **Ctrl+Shift+C**, opening the same dialog even if future DPI layouts interfere with the button. Preserves the All/first-N mode and the exact named-target setting. No scanner/navigation/material/GOOD logic changed. Fresh-build CI and actual high-DPI click validation still required.
 
+## EXP024 named selection live failure and controller re-anchoring — 2026-10-23 11:20–11:22
+
+User supplied `Character selection test.zip` (current logs, five forced full-window verification screenshots, attribute/constellation captures) and `genshinData_GOOD_2026_10_23_11_22.json`. Requested names: **Chongyun, Kinich, TravelerCryo**. All three correctly discovered in Phase 1, after 61 physical slots. The GOOD nevertheless contained **C0/0/0/0 TravelerCryo**, Kinich 0/0/0 and Chongyun C5/0/0/0; **DO NOT IMPORT**.
+
+### Screenshot-grounded finding: one lost roster shoulder input
+
+- Phase 2, last-to-first (backward): Chongyun's Constellation correct, C5. Next expected **Kinich** but captured **Tartaglia** (exactly one position to the RIGHT of Kinich). Next expected **TravelerCryo** but captured **Faruzan** (one right of Traveler).
+- Phase 3, first-to-last (forward): Traveler → Faruzan, Kinich → Tartaglia, Chongyun → Alyosha, each **one to the RIGHT of expected**. Forced UI screenshots confirm all five wrong-slot captures.
+- The first long jump backward from Chongyun to Kinich crossed roughly **44 roster slots** using blind 80ms shoulder taps + 100ms waits. A single dropped `LB` press fully explains all subsequent offsets; this is strongly supported but the exact dropped press is not individually observable.
+- Existing exact header verification CORRECTLY refused to attribute the wrong characters' talents. The problem was not an OCR hallucination; after one skipped tap, the navigation never regained synchronisation.
+- A **separate false warning** reported all three selected characters missing because `requestedNames.Except(scanned)` used a default case-sensitive comparer even though actual recorded names differed only in case. Fixed with `StringComparer.OrdinalIgnoreCase` and regression test.
+- Additional `geo / chior . ar j` from Phase 1 was an unselected character's OCR ambiguity; Farty Pants is the expected mannequin. Neither explains the three zero talents.
+
+### Navigation change (targeted mode only; pending new live test)
+
+- Kept the original full-roster controller implementation, which successfully collected 72 characters in previous scans. **Did not switch input schemes**, since controller keyboard/mouse scheme switching can invalidate ROI and menu positioning.
+- Named-character shoulder gaps now use a conservative `120ms` hold + `180ms` settle, instead of 80/100, only in the targeted replay.
+- After **every targeted constellation/talent jump**, re-read the visible name + element. If wrong, probe up to **3** physical slots in the intended direction, then up to **3** in the opposite direction. Every probe must pass existing exact-name/element OCR verification, including its bounded alternate OCR path. Emit `EXP024 NAMED_SCAN RESYNC` logs on successful recovery.
+- If no position can be verified, **abort subsequent passes** and record `RESYNC_FAILED` rather than continuing a permanently shifted roster or assigning wrong values. This favors partial invalid data over misattributing any other character's constellation.
+- The first-run target should be `Chongyun, Kinich, TravelerCryo`, then inspect `RESYNC`, expected GOOD values (Chongyun 1/1/1, Kinich C0 7/8/8, Cryo Traveler C4 5/5/6), and absence of header failures and false missing-target warnings.
+- Potential future research: an **optional keyboard-navigation backend** for Character roster travel, with identical identity checkpoints and dedicated ROI/layout validation. Do not replace controller navigation globally until A/B measurements show a benefit; current strong evidence is a missed input in *blind long-gap replay*, not that the controller is inherently incapable.
+
 ## If new live evidence is needed
 
 1. Build from `feature/v4-hybrid` **after CI succeeds**, not from the EXP-020 archived branch.
