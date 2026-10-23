@@ -88,6 +88,18 @@ Replace the Phase 2/3 verifier's direct `NameGOOD == recognizedName` check with 
 
 **Validation still required:** the new build must scan and export nonzero Cryo Traveler talents while continuing to read Mika and the other 70 characters. Do not describe this correction as live-proven based only on successful CI.
 
+## Follow-up live scan — 2026-10-23 10:03–10:12 (new EXP-024 evidence)
+
+User supplied `InventoryKamera(2).log`, `InventoryKamera.debug(2).log`, and `genshinData_GOOD_2026_10_23_10_11.json`. Characters only, 3840×2160, game data 7.1.
+
+- **72/72 expected playable characters recognised, 72 distinct GOOD keys**; only intentionally excluded mannequin `cryo / farty_pants` is logged unrecognised. Mika is captured C4 with base 1/1/1, and Kirara C5 with base 1/1/1, so the previously suspected Mika/Kirara cross-reading is not borne out by this export.
+- **71/72 have all-positive talent levels**. The sole 0/0/0 is **Chongyun**, whose `EXP024 TALENT_FAILURE` logged `attempts=20, maxRows=2` and raw OCR with `Lv: 1` / `Lw. 1` variants. Do **not** treat this as a real 0 or assume a numerical value from the incomplete OCR; screenshot review/targeted parser work belongs to a separate follow-up.
+- Previous EXP023 failures recovered: Kinich 7/8/8, Mavuika 6/6/6, Yaoyao 1/2/1, Collei 1/1/1, Chiori 1/1/1, Tighnari 1/1/1, Gorou 1/1/1, YunJin 1/1/1. `EXP024 HEADER_ALTERNATE_ACCEPT` showed correct headers for Chiori, Tighnari, Kirara, and others. YunJin OCR captured 1/1/4, then correctly subtracted C3 +3 Burst to export 1/1/1.
+- **Confirmed Cryo Traveler database defect:** at 10:05:14 `TravelerCryo Constellation: 4`; at 10:10:38 `EXP024 TALENT_SUCCESS character=TravelerCryo ... scanned=5/5/9`, followed by `TravelerCryo: missing or malformed ConstellationOrder data. Talent levels were not adjusted`. GOOD incorrectly preserved 5/5/9; the expected unbuffed C4 GOOD is **5/5/6**. The existing builder's `playerElements` list excludes Cryo, and the per-element constellation mapping is missing/stale. This is not a misread name or talent.
+- **Post-scan fix prepared:** pure `TryResolveConstellationTalentOrder` shared between early talent plausibility and final constellation scaling; Cryo Traveler's known C3 Burst/C5 Skill correction applied even when metadata is missing/wrong. `EnsureCryoTravelerMetadata` supplies `cryo` in memory on data reload and in future database updates, without replacing preserved orders for other forms. Unit tests cover C4 5/5/9 to 5/5/6, stale and wrong Cryo entries, repeat idempotence, other element preservation, and no false Cryo fallback for Hydro/Pyro. **Pending fresh-build CI and in-game validation**; the uploaded GOOD was made *before* this fix and remains incorrect for Traveler and Chongyun.
+
+**Scope:** No alteration to EXP020 Materials archive, navigation, OCR thresholds, other character constellation orders, Weapons, or Artifacts.
+
 ## If new live evidence is needed
 
 1. Build from `feature/v4-hybrid` **after CI succeeds**, not from the EXP-020 archived branch.
