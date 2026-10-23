@@ -28,6 +28,7 @@ namespace InventoryKamera
         string WandererName { get; }
         int SortByObtained { get; }
         int NumOfCharToScan { get; }
+        string SpecificCharacterNames { get; }
         string Manequin1Name { get; }
         string Manequin2Name { get; }
     }
