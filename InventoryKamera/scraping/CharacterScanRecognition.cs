@@ -66,6 +66,15 @@ namespace InventoryKamera
             return Normalize(raw) == Normalize(expectedElement) + Normalize(expectedDisplayName);
         }
 
+        /// <summary>
+        /// Screenshot-confirmed in EXP-024: the current game allows a Cryo
+        /// Traveler. A cached characters.json may not yet include that form.
+        /// Do not relax element validation for anyone else or for mannequins.
+        /// </summary>
+        internal static bool IsObservedCryoTraveler(string canonicalName, string element) =>
+            string.Equals(canonicalName, "Traveler", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(element, "Cryo", StringComparison.OrdinalIgnoreCase);
+
         internal static bool SaysActivated(string text) =>
             !string.IsNullOrWhiteSpace(text) &&
             Regex.IsMatch(text, @"\bactivated\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
