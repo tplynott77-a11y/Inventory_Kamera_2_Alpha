@@ -477,8 +477,8 @@ namespace InventoryKamera
 		{
 			string currentName = null, currentElement = null;
 			string rawHeaderOcr = ScanNameAndElement(ref currentName, ref currentElement, maxAttempts: 5);
-            if (string.Equals(currentName, character.NameGOOD, StringComparison.Ordinal) &&
-                string.Equals(currentElement, character.Element, StringComparison.OrdinalIgnoreCase))
+            if (CharacterScanRecognition.MatchesExpectedCharacter(
+                character.NameGOOD, character.Element, currentName, currentElement))
                 return true;
 
             // EXP-024 observed genuine Kinich/Chiori talent screens whose
