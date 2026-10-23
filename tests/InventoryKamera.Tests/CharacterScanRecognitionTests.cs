@@ -41,6 +41,19 @@ namespace InventoryKamera.Tests
         }
 
         [Fact]
+        public void EXP024_NamedSelectionAlreadyFoundDoesNotRaiseFalseMissingWarnings()
+        {
+            var requested = CharacterScanRecognition.ParseRequestedCharacterNames(
+                "Chongyun, Kinich, TravelerCryo");
+            var recordedGoodKeys = new System.Collections.Generic.HashSet<string>(
+                StringComparer.OrdinalIgnoreCase)
+                { "TravelerCryo", "Kinich", "Chongyun" };
+            // The old code omitted the comparer and falsely logged that all
+            // three requested targets were missing even after recording them.
+            Assert.Empty(requested.Except(recordedGoodKeys, StringComparer.OrdinalIgnoreCase));
+        }
+
+        [Fact]
         public void EXP024_NamedSelectionMatchesOnlyExactNormalizedGoodKeys()
         {
             var requested = CharacterScanRecognition.ParseRequestedCharacterNames(
