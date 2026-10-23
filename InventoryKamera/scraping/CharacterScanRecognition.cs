@@ -48,6 +48,24 @@ namespace InventoryKamera
             return compact.Length <= limit ? compact : compact.Substring(0, limit) + "...";
         }
 
+        /// <summary>
+        /// EXP-024: Only a complete OCR header that precisely matches the expected
+        /// element AND display name may rescue a failed primary identity read.
+        /// This is intentionally stricter than the roster's fuzzy first-pass
+        /// parser: stripping separators/whitespace is safe, guessing names is not.
+        /// </summary>
+        internal static bool ExactHeaderMatches(string raw, string expectedElement, string expectedDisplayName)
+        {
+            if (string.IsNullOrWhiteSpace(raw) ||
+                string.IsNullOrWhiteSpace(expectedElement) ||
+                string.IsNullOrWhiteSpace(expectedDisplayName)) return false;
+
+            string Normalize(string value) =>
+                Regex.Replace(value, @"[\W_]", "", RegexOptions.CultureInvariant).ToLowerInvariant();
+
+            return Normalize(raw) == Normalize(expectedElement) + Normalize(expectedDisplayName);
+        }
+
         internal static bool SaysActivated(string text) =>
             !string.IsNullOrWhiteSpace(text) &&
             Regex.IsMatch(text, @"\bactivated\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
