@@ -25,6 +25,21 @@ namespace InventoryKamera.Tests
         }
 
         [Theory]
+        [InlineData("Dendro / Kinich", "Dendro", "Kinich", true)]
+        [InlineData("Geo / Chiori", "Geo", "Chiori", true)]
+        [InlineData("Cryo / T_2the_homas77", "Cryo", "t_2the_homas77", true)]
+        [InlineData("Cryo / Farty_Pants", "Cryo", "t_2the_homas77", false)]
+        [InlineData("Dendro / Tighnari", "Dendro", "Kinich", false)]
+        [InlineData("Geo / Kinich", "Dendro", "Kinich", false)]
+        [InlineData("Anemo Yumemizuki\n/ Mizuki", "Anemo", "YumemizukiMizuki", true)]
+        [InlineData("", "Dendro", "Kinich", false)]
+        public void EXP024_AlternateHeaderMustExactlyMatchElementAndDisplayName(
+            string raw, string element, string displayName, bool expected)
+        {
+            Assert.Equal(expected, CharacterScanRecognition.ExactHeaderMatches(raw, element, displayName));
+        }
+
+        [Theory]
         [InlineData("Traveler", "cryaq", "", "cryo")]
         [InlineData("Traveler", "gryo", "", "cryo")]
         [InlineData("Kaeya", "gryo", "", "")]
