@@ -27,6 +27,40 @@ namespace InventoryKamera.Tests
         }
 
         [Theory]
+        [InlineData("cryo / chongyun, 2", "Cryo", "Chongyun", true)]
+        [InlineData("cryo / chongyun, 22", "Cryo", "Chongyun", true)]
+        [InlineData("cryo / chongyun, 222", "Cryo", "Chongyun", false)]
+        [InlineData("cryo / kaeya, 2", "Cryo", "Chongyun", false)]
+        [InlineData("pyro / chongyun, 2", "Cryo", "Chongyun", false)]
+        [InlineData("cryo / chongyun garbage", "Cryo", "Chongyun", false)]
+        public void EXP024_HeaderAcceptsOnlyObservedTrailingNumericOcrNoise(
+            string raw, string element, string name, bool expected)
+        {
+            Assert.Equal(expected,
+                CharacterScanRecognition.ExactHeaderMatches(raw, element, name));
+        }
+
+        [Fact]
+        public void EXP024_NamedSelectionMatchesOnlyExactNormalizedGoodKeys()
+        {
+            var requested = CharacterScanRecognition.ParseRequestedCharacterNames(
+                "  Chongyun, Kinich; Cryo Traveler\nYun Jin, Chongyun");
+            Assert.Equal(4, requested.Count);
+            Assert.Contains("chongyun", requested);
+            Assert.Contains("kinich", requested);
+            Assert.Contains("travelercryo", requested);
+            Assert.Contains("yunjin", requested);
+            Assert.DoesNotContain("keqing", requested);
+            Assert.Equal("travelercryo",
+                CharacterScanRecognition.NormalizeRequestedCharacterName("TravelerCryo"));
+            Assert.Equal("travelercryo",
+                CharacterScanRecognition.NormalizeRequestedCharacterName("Cryo Traveler"));
+            Assert.Equal("yunjin",
+                CharacterScanRecognition.NormalizeRequestedCharacterName("Yun Jin"));
+            Assert.Empty(CharacterScanRecognition.ParseRequestedCharacterNames(""));
+        }
+
+        [Theory]
         [InlineData("Dendro / Kinich", "Dendro", "Kinich", true)]
         [InlineData("Geo / Chiori", "Geo", "Chiori", true)]
         [InlineData("Cryo / T_2the_homas77", "Cryo", "t_2the_homas77", true)]
