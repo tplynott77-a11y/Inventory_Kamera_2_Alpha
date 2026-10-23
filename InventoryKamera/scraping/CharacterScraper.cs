@@ -131,9 +131,21 @@ namespace InventoryKamera
 		/// </summary>
 		public void ScanCharacters(GameController controller, ref List<Character> Characters)
 		{
-			int maxToScan = NumOfCharToScan;
-			if (maxToScan != 0) progressReporter.SetCharacter_Max(maxToScan);
-			progressReporter.ResetCharacterDisplay();
+            var requestedNames = CharacterScanRecognition.ParseRequestedCharacterNames(
+                scanSettings.SpecificCharacterNames);
+            bool targeted = requestedNames.Count > 0;
+            int maxToScan = targeted ? 0 : NumOfCharToScan;
+            if (targeted)
+            {
+                progressReporter.SetCharacter_Max(requestedNames.Count);
+                Logger.Info("EXP024 NAMED_SCAN requested exact names: {0}",
+                    string.Join(", ", requestedNames.OrderBy(v => v)));
+            }
+            else if (maxToScan != 0)
+            {
+                progressReporter.SetCharacter_Max(maxToScan);
+            }
+            progressReporter.ResetCharacterDisplay();
 
 			EnterCharacterMenu(controller);
 
@@ -145,8 +157,15 @@ namespace InventoryKamera
 			// (GameController.MashBack, an earlier version of this method) does NOT apply here and
 			// would actively misnavigate.
 			// --- Phase 1: Attributes (name, element, level) for the whole roster ---
-			string firstName = null;
-			var scanned = new HashSet<string>();
+            string firstName = null;
+            string firstPhysicalName = null;
+            int physicalSlot = 0;
+            var scanned = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Full (first four physical roster slots) party state is kept
+            // independently of which characters were selected for export.
+            // Otherwise Skirk/Childe could mistakenly see selected targets as
+            // the first four party members.
+            var physicalParty = new List<Character>();
 
 			// True once the loop breaks via wraparound (cursor already sitting back on the first
 			// character); false if it breaks via the scan-count cap or a cancel request (cursor
@@ -178,53 +197,97 @@ namespace InventoryKamera
 
 				if (hasValidNameAndElement)
 				{
-					if (Characters.Count > 0 && name == firstName)
-					{
-						// Wrapped back to the first character -- stop before advancing again so the
-						// cursor is left sitting on it.
-						wrapGap = gapSinceLastRecorded;
-						endedAtFirstCharacter = true;
-						break;
-					}
+                    // The full-scan wrap marker is the first *recorded*
+                    // character. In named mode it must be the first PHYSICAL
+                    // character, since the first requested target could be
+                    // fifty slots further into the roster.
+                    string currentPhysicalName = name == "Traveler"
+                        ? "Traveler" + element : name;
+                    if (targeted && firstPhysicalName == null)
+                        firstPhysicalName = currentPhysicalName;
+                    bool wrapped = targeted
+                        ? physicalSlot > 0 && string.Equals(
+                            currentPhysicalName, firstPhysicalName, StringComparison.OrdinalIgnoreCase)
+                        : Characters.Count > 0 && name == firstName;
+                    if (wrapped)
+                    {
+                        // For a targeted subset, complete the circular gap from
+                        // last requested target THROUGH the physical start back
+                        // to the first requested target.
+                        wrapGap = gapSinceLastRecorded +
+                            (targeted && gapsBeforeEach.Count > 0 ? gapsBeforeEach[0] : 0);
+                        endedAtFirstCharacter = true;
+                        break;
+                    }
 
-					bool ascended = false;
-					int level = ScanLevel(ref ascended);
-					if (level == -1)
-					{
-						progressReporter.AddError($"Could not determine {name}'s level. Setting to 1.");
-						level = 1;
-						ascended = false;
-					}
+                    string goodKey = name == "Traveler"
+                        ? "Traveler" + element : name;
+                    bool wanted = !targeted || requestedNames.Contains(
+                        CharacterScanRecognition.NormalizeRequestedCharacterName(goodKey));
+                    bool partySlot = targeted && physicalSlot < 4;
 
-					// Log the Attributes screen here -- after name/element/level are read but before the
-					// duplicate gate below -- so the full-window capture always lands even when level (or
-					// any other field) failed to parse. That failing case is exactly what's worth
-					// debugging for a new aspect ratio like 16:10, where a mis-placed region is the reason
-					// the read failed in the first place.
-					LogCharacterScreenshot(name, "attributes", NameElementRegion());
-					LogCharacterWindow(name, "attributes");
+                    // Only expensive Attributes work for selected targets;
+                    // collect the first four physical party members too so
+                    // passive team corrections don't mistake a subset for a
+                    // different team. Names alone are sufficient for others.
+                    if (wanted || partySlot)
+                    {
+                        bool ascended = false;
+                        int level = ScanLevel(ref ascended);
+                        if (level == -1)
+                        {
+                            if (wanted) progressReporter.AddError($"Could not determine {name}'s level. Setting to 1.");
+                            level = 1;
+                            ascended = false;
+                        }
 
-					if (!scanned.Contains(name))
-					{
-						var character = new Character
-						{
-							NameGOOD = name,
-							Element = element,
-							Level = level,
-							Ascended = ascended
-						};
-						Characters.Add(character);
-						gapsBeforeEach.Add(gapSinceLastRecorded);
-						gapSinceLastRecorded = 0;
-						scanned.Add(name);
-						progressReporter.IncrementCharacterCount();
-						if (Characters.Count == 1) firstName = name;
-						Logger.Info("{0} attributes: element={1}, level={2}{3}", character.NameGOOD, character.Element, character.Level, character.Ascended ? "+" : "");
-					}
-					else
-					{
-						Logger.Info("Prevented {0} duplicate scan (controller)", name);
-					}
+                        if (partySlot)
+                        {
+                            physicalParty.Add(new Character
+                            {
+                                NameGOOD = name,
+                                Element = element,
+                                Level = level,
+                                Ascended = ascended
+                            });
+                        }
+
+                        if (wanted)
+                        {
+                            // Keep the exact existing GOOD identity and
+                            // screenshot evidence for selected targets.
+                            LogCharacterScreenshot(name, "attributes", NameElementRegion());
+                            LogCharacterWindow(name, "attributes");
+
+                            if (!scanned.Contains(goodKey))
+                            {
+                                var character = new Character
+                                {
+                                    NameGOOD = name,
+                                    Element = element,
+                                    Level = level,
+                                    Ascended = ascended
+                                };
+                                Characters.Add(character);
+                                gapsBeforeEach.Add(gapSinceLastRecorded);
+                                gapSinceLastRecorded = 0;
+                                scanned.Add(goodKey);
+                                progressReporter.IncrementCharacterCount();
+                                if (Characters.Count == 1) firstName = name;
+                                Logger.Info("{0} attributes: element={1}, level={2}{3}",
+                                    character.NameGOOD, character.Element, character.Level,
+                                    character.Ascended ? "+" : "");
+                            }
+                            else
+                            {
+                                Logger.Info("Prevented {0} duplicate scan (controller)", goodKey);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        Logger.Debug("EXP024 NAMED_SCAN skip attributes for non-target {0}", goodKey);
+                    }
 				}
 				else if (!isManequin)
 				{
@@ -249,9 +312,21 @@ namespace InventoryKamera
 
 				controller.TapButton(Xbox360Button.RightShoulder, InventoryScraper.ScaledControllerDelay(80));
 				Thread.Sleep(InventoryScraper.ScaledControllerDelay(100));
-				gapSinceLastRecorded++;
+                gapSinceLastRecorded++;
+                physicalSlot++;
 
-				if (maxToScan != 0 && Characters.Count >= maxToScan) break;
+                // Stop as soon as all exact requested names were seen (after
+                // the first four party slots are known). The ordinary partial
+                // backward-pass algorithm will now retrace the measured gaps.
+                if (targeted && physicalSlot >= 4 &&
+                    requestedNames.All(v => scanned.Contains(v)))
+                {
+                    Logger.Info("EXP024 NAMED_SCAN all {0} targets found after {1} physical slots.",
+                        requestedNames.Count, physicalSlot);
+                    break;
+                }
+
+                if (!targeted && maxToScan != 0 && Characters.Count >= maxToScan) break;
 				if (GameScanner.CancelRequested)
 				{
 					Logger.Info("Stopping character scan: cancel requested");
@@ -259,8 +334,17 @@ namespace InventoryKamera
 				}
 			}
 
-			int count = Characters.Count;
-			if (count == 0) return;
+            if (targeted)
+            {
+                foreach (string missing in requestedNames.Except(scanned).OrderBy(v => v))
+                    progressReporter.AddError($"Named character not found: {missing}. The partial export excludes it.");
+                Logger.Info("EXP024 NAMED_SCAN selected={0}/{1}: {2}",
+                    Characters.Count, requestedNames.Count,
+                    string.Join(", ", Characters.Select(c => c.NameGOOD)));
+            }
+
+            int count = Characters.Count;
+            if (count == 0) return;
 
 			// Per user (2026-07-05): a cancel request during Phase 1 was respected (the loop above
 			// already checks it), but Phase 2/3 never checked it at all, so a cancel mid-scan
@@ -310,9 +394,14 @@ namespace InventoryKamera
 			// rather than assuming count taps), and a partial scan's cursor instead sits gapAfterLast
 			// characters past the last one scanned, so reading backward from there reaches the same
 			// characters a rewind-then-forward pass would, for far fewer shoulder taps.
-			if (endedAtFirstCharacter)
-				ScanRosterForward(controller, characterList, gapsBeforeEach, gapAfterLast, ScanConstellation);
-			else
+            if (endedAtFirstCharacter)
+            {
+                // Full named-roster discovery ends at the initial physical
+                // character, not necessarily the first requested target.
+                if (targeted) AdvanceRoster(controller, Xbox360Button.RightShoulder, gapsBeforeEach[0]);
+                ScanRosterForward(controller, characterList, gapsBeforeEach, gapAfterLast, ScanConstellation);
+            }
+            else
 				ScanRosterBackward(controller, characterList, gapsBeforeEach, gapAfterLast, ScanConstellation);
 
 			if (GameScanner.CancelRequested)
