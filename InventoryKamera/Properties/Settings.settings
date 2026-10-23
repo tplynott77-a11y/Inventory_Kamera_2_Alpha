@@ -87,6 +87,9 @@
     <Setting Name="NumOfCharToScan" Type="System.Int32" Scope="User">
       <Value Profile="(Default)">0</Value>
     </Setting>
+    <Setting Name="SpecificCharacterNames" Type="System.String" Scope="User">
+      <Value Profile="(Default)"></Value>
+    </Setting>
     <Setting Name="Manequin1Name" Type="System.String" Scope="User">
       <Value Profile="(Default)">Manequin1</Value>
     </Setting>
