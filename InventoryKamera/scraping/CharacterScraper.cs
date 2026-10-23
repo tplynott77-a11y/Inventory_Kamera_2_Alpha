@@ -99,6 +99,49 @@ namespace InventoryKamera
 		}
 
 		/// <summary>
+        /// <summary>
+        /// In named mode, adjust only targets actually in the first four
+        /// PHYSICAL roster slots, not the first four chosen names. This keeps
+        /// Childe/Skirk buffs correct for single-character debugging.
+        /// </summary>
+        private void ApplyTargetedPartyTalentFixes(
+            List<Character> targets, List<Character> physicalParty)
+        {
+            bool completeParty = physicalParty.Count == 4;
+            bool IsInParty(Character character) => completeParty &&
+                physicalParty.Any(p => p.NameGOOD == character.NameGOOD);
+
+            bool tartagliaOnTeam = completeParty &&
+                physicalParty.Any(p => p.NameGOOD == "Tartaglia" && p.Ascension >= 4);
+            bool skirkOnTeam = completeParty &&
+                physicalParty.Any(p => p.NameGOOD == "Skirk") &&
+                physicalParty.All(p => p.Element != null &&
+                    (p.Element.Equals("Hydro", StringComparison.OrdinalIgnoreCase) ||
+                     p.Element.Equals("Cryo", StringComparison.OrdinalIgnoreCase)));
+
+            if (!completeParty)
+                Logger.Warn("EXP024 NAMED_SCAN incomplete party: team buffs will not be inferred.");
+
+            foreach (Character target in targets)
+            {
+                bool inParty = IsInParty(target);
+                if (((tartagliaOnTeam && inParty) ||
+                     (target.NameGOOD == "Tartaglia" && target.Ascension >= 4)) &&
+                    target.Talents.TryGetValue("auto", out int rawAuto) && rawAuto > 1)
+                {
+                    target.Talents["auto"] -= 1;
+                    Logger.Info("EXP024 NAMED_SCAN Tartaglia auto correction for {0}", target.NameGOOD);
+                }
+
+                if (skirkOnTeam && inParty &&
+                    target.Talents.TryGetValue("skill", out int rawSkill) && rawSkill > 1)
+                {
+                    target.Talents["skill"] -= 1;
+                    Logger.Info("EXP024 NAMED_SCAN Skirk skill correction for {0}", target.NameGOOD);
+                }
+            }
+        }
+
 		/// Controller-driven character scan (Phase 3 §6c), batched by sub-tab across the whole roster
 		/// instead of per-character. Per user design decision (2026-07-05): switching the character
 		/// screen's sub-tab (left-stick up/down; full order is Attributes, Weapons, Artifacts,
@@ -353,8 +396,15 @@ namespace InventoryKamera
 			// the Tartaglia fix on whatever was scanned rather than starting Phase 2/3 at all.
 			if (GameScanner.CancelRequested)
 			{
-				ApplyTartagliaFix(Characters);
-				ApplySkirkFix(Characters);
+				if (targeted)
+				{
+				    ApplyTargetedPartyTalentFixes(Characters, physicalParty);
+				}
+				else
+				{
+				    ApplyTartagliaFix(Characters);
+				    ApplySkirkFix(Characters);
+				}
 				return;
 			}
 
@@ -406,8 +456,15 @@ namespace InventoryKamera
 
 			if (GameScanner.CancelRequested)
 			{
-				ApplyTartagliaFix(Characters);
-				ApplySkirkFix(Characters);
+				if (targeted)
+				{
+				    ApplyTargetedPartyTalentFixes(Characters, physicalParty);
+				}
+				else
+				{
+				    ApplyTartagliaFix(Characters);
+				    ApplySkirkFix(Characters);
+				}
 				return;
 			}
 
@@ -433,8 +490,15 @@ namespace InventoryKamera
 				ApplyConstellationTalentScaling(character);
 			});
 
-			ApplyTartagliaFix(Characters);
-			ApplySkirkFix(Characters);
+			if (targeted)
+			{
+			    ApplyTargetedPartyTalentFixes(Characters, physicalParty);
+			}
+			else
+			{
+			    ApplyTartagliaFix(Characters);
+			    ApplySkirkFix(Characters);
+			}
 		}
 
 		/// <summary>
