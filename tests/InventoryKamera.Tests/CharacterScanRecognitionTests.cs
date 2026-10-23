@@ -6,6 +6,24 @@ namespace InventoryKamera.Tests
 {
     public class CharacterScanRecognitionTests
     {
+        [Fact]
+        public void EXP024_DiagnosticsPreserveRowsWithoutModifyingRawOcr()
+        {
+            string raw = "  Normal   Lv. 1\nSkill\tLv. 4\r\nBurst Lv. 4";
+            Assert.Equal("Normal Lv. 1 | Skill Lv. 4 | Burst Lv. 4",
+                CharacterScanRecognition.CompactOcrDiagnostic(raw));
+            Assert.Equal("  Normal   Lv. 1\nSkill\tLv. 4\r\nBurst Lv. 4", raw);
+        }
+
+        [Fact]
+        public void EXP024_DiagnosticsAreBoundedAndHandleEmptyOcr()
+        {
+            Assert.Equal("(empty)", CharacterScanRecognition.CompactOcrDiagnostic("  "));
+            Assert.Equal("01234...", CharacterScanRecognition.CompactOcrDiagnostic("0123456789", 5));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                CharacterScanRecognition.CompactOcrDiagnostic("a", 0));
+        }
+
         [Theory]
         [InlineData("Traveler", "cryaq", "", "cryo")]
         [InlineData("Traveler", "gryo", "", "cryo")]
