@@ -75,6 +75,23 @@ namespace InventoryKamera
             string.Equals(canonicalName, "Traveler", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(element, "Cryo", StringComparison.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// EXP-024: before accepting a talent OCR candidate, reject a claimed
+        /// C3/C5 boosted talent below display Lv.4. This does NOT infer the
+        /// correct value; it only requests another OCR attempt.
+        /// </summary>
+        internal static bool ImpossibleConstellationTalentCandidate(
+            int constellation, string c3Talent, string c5Talent, int normal, int skill, int burst)
+        {
+            int TalentLevel(string key) =>
+                key == "auto" ? normal : key == "skill" ? skill : key == "burst" ? burst : 0;
+
+            return (constellation >= 3 && !string.IsNullOrWhiteSpace(c3Talent) &&
+                       TalentLevel(c3Talent) < 4) ||
+                   (constellation >= 5 && !string.IsNullOrWhiteSpace(c5Talent) &&
+                       TalentLevel(c5Talent) < 4);
+        }
+
         internal static bool SaysActivated(string text) =>
             !string.IsNullOrWhiteSpace(text) &&
             Regex.IsMatch(text, @"\bactivated\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
