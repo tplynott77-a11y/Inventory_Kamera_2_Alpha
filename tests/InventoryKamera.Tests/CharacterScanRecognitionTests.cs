@@ -233,6 +233,39 @@ namespace InventoryKamera.Tests
             Assert.True(burst.Bottom < 480); // passives excluded
         }
 
+        [Fact]
+        public void EXP024_ChongyunActualFailedOcrNowFindsThreeCombatRows()
+        {
+            // Directly transcribed from the user's EXP-024 debug log:
+            // first attempt was rejected despite the three visible levels.
+            const string observed = "10nbane\nLv: 1\n)nghua's\ned Frogt\nLv. 4\n-Parting\nStar\nLv.4\n-eathing'\nor Blade";
+            Assert.Equal(new[] { 1, 4, 4 },
+                CharacterScanRecognition.ParseControllerTalentLevels(observed));
+        }
+
+        [Theory]
+        [InlineData("Flv. 1", 1)]   // Qiqi: existing partial-name OCR
+        [InlineData("Lv. 10", 10)]  // existing normal form
+        [InlineData("Lv: 1", 1)]   // Chongyun: observed colon for period
+        [InlineData("lv:4", 4)]    // case-insensitive observed punctuation form
+        [InlineData("Lv 4", 4)]    // existing missing punctuation behaviour
+        public void EXP024_ColonRescuePreservesExistingControllerRows(string raw, int expected)
+        {
+            Assert.Equal(new[] { expected },
+                CharacterScanRecognition.ParseControllerTalentLevels(raw));
+        }
+
+        [Theory]
+        [InlineData("Lw. 1")]  // Do not guess a different letter
+        [InlineData("Lv: 0")]
+        [InlineData("Lv: 16")]
+        [InlineData("Level 4")]
+        [InlineData("Passive skill")]
+        public void EXP024_ColonRescueDoesNotInventOrAcceptIllegalLevels(string raw)
+        {
+            Assert.Empty(CharacterScanRecognition.ParseControllerTalentLevels(raw));
+        }
+
         [Theory]
         [InlineData("Lv. 1", 1)]
         [InlineData("Cragbiter  Lv. 1", 1)]
