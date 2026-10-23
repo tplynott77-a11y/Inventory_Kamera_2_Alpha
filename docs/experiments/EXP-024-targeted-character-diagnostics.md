@@ -129,6 +129,12 @@ User supplied `InventoryKamera(3).log`, `InventoryKamera.debug(3).log`, `genshin
 
 **Validation state:** compile/unit tests and Windows packaging pending final latest CI; **in-game named-mode test not yet run**.
 
+## High-DPI UI correction — 2026-10-23
+
+User provided a full screenshot of the 2.0.0-alpha WinForms main window showing **Chars to Scan: 5** and the `What to Scan` box severely crowded; the new `Specific...` option was not visibly clickable. Previous runtime button at `(200,224)`, `101×30` was too small/crowded under the fixed-size `320×296` box.
+
+**UI-only correction:** button moved into the otherwise free right column beside Dev Items/Materials (`x135,y219,w167,h58`), rendered with a distinct, high-contrast background, two-line label and explicit `BringToFront`. Added a permanent second entry **Options → Scan Specific Characters...** with shortcut **Ctrl+Shift+C**, opening the same dialog even if future DPI layouts interfere with the button. Preserves the All/first-N mode and the exact named-target setting. No scanner/navigation/material/GOOD logic changed. Fresh-build CI and actual high-DPI click validation still required.
+
 ## If new live evidence is needed
 
 1. Build from `feature/v4-hybrid` **after CI succeeds**, not from the EXP-020 archived branch.
