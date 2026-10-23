@@ -66,6 +66,26 @@ namespace InventoryKamera.Tests
         }
 
         [Fact]
+        public void PartialCharacterLimit_IsForwardedIncludingTwentyAndAll()
+        {
+            int original = Properties.Settings.Default.NumOfCharToScan;
+            try
+            {
+                IScanSettings settings = new ScanSettings();
+
+                Properties.Settings.Default.NumOfCharToScan = 20;
+                Assert.Equal(20, settings.NumOfCharToScan);
+
+                Properties.Settings.Default.NumOfCharToScan = 0;
+                Assert.Equal(0, settings.NumOfCharToScan);
+            }
+            finally
+            {
+                Properties.Settings.Default.NumOfCharToScan = original;
+            }
+        }
+
+        [Fact]
         public void TravelerName_ReflectsLiveChangesToApplicationSettings()
         {
             string original = Properties.Settings.Default.TravelerName;
