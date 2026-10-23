@@ -788,7 +788,7 @@ namespace InventoryKamera
             NumOfCharToScanControl.Font = new System.Drawing.Font("Segoe UI", 8F);
             NumOfCharToScanControl.Location = new System.Drawing.Point(200, 188);
             NumOfCharToScanControl.Margin = new System.Windows.Forms.Padding(6);
-            NumOfCharToScanControl.Maximum = new decimal(new int[] { 10, 0, 0, 0 });
+            NumOfCharToScanControl.Maximum = new decimal(new int[] { 100, 0, 0, 0 });
             NumOfCharToScanControl.Name = "NumOfCharToScanControl";
             NumOfCharToScanControl.Size = new System.Drawing.Size(101, 29);
             NumOfCharToScanControl.TabIndex = 110;
