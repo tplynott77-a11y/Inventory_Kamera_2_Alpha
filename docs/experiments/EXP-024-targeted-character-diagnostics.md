@@ -1,6 +1,6 @@
 # EXP-024 — Diagnose missing talents without changing recognition
 
-**Date prepared:** 2026-10-23. **Branch:** `feature/v4-hybrid`. **Status:** NAMED-CHARACTER MODE LIVE VALIDATED (3/3 EXACT EXPECTED GOOD VALUES); FULL 72-CHARACTER REVALIDATION STILL PENDING.
+**Date prepared:** 2026-10-23. **Branch:** `feature/v4-hybrid`. **Final status:** **PASS — full 72/72 characters and 72/72 talent sets validated in-game at 3840×2160, Normal speed (11:51 GOOD export). Character baseline archived separately; EXP025 integration follows.**
 
 ## Baseline (EXP-023)
 - The user-provided `genshinData_GOOD_2026_10_22_22_08.json` contains 71 character records, of which 63 have three positive talents.
@@ -175,6 +175,16 @@ User submitted `Updated navigation.zip` (current `logging/InventoryKamera.log`, 
 
 **Conclusion:** opt-in named-character scan and controller position-checking are **live validated for this specific 3-target test**. Results do **not** demonstrate every possible target order or a fresh complete 72/72 scan; do not yet freeze character scanning on only this partial test. No keyboard-backend change was required. EXP-020 558/558 materials archive untouched.
 
+## EXP-024 FINAL ACCEPTANCE — 2026-10-23 (11:51 GOOD export)
+
+**PASS / close EXP024 for this roster and configuration.** The complete final run contains 72 distinct playable GOOD keys, 72 attribute results, 72 constellation results and 72 positive base-talent triplets. Exactly **72 `EXP024 TALENT_SUCCESS`**, **0 `EXP024 TALENT_FAILURE`**, **0 `EXP024 HEADER_FAILURE`**, and **0 resynchronisation failures**. Alternative OCR rescued 11 headers; fresh-frame retry rescued 3 more. The only reported error was the expected rejection of `cryo / farty_pants` mannequin.
+
+Verified formerly blocking examples: `TravelerCryo C4 5/5/6`, `Chongyun C5 1/1/1`, `Kinich C0 7/8/8`, `YunJin C3 1/1/1`, `Charlotte C4`, `Kirara C5`, `Mika C4`. Tartaglia's self auto-attack passive correction ran. All other fields match the previous full export except the intended Chongyun recovery and Keqing's Skill: the former 10:54 `6/8/8` was an OCR outlier (10 retries), whereas this run reports `6/6/8` (2 retries), matching multiple earlier snapshots. Treat screenshot-level certainty for Keqing as optional future spot-check, not a confirmed character regression.
+
+See the reproducible acceptance report, including source-file SHA-256 hashes, precise counts, cross-run comparison and validation limitations: **[EXP-024 final character validation](EXP-024-final-character-validation-2026-10-23.md)**.
+
+**The historical “If new live evidence is needed” protocol below is superseded by this successful final run.** No additional EXP024 full scan is required unless the user changes roster/configuration or a later code change regresses this baseline.
+
 ## If new live evidence is needed
 
 1. Build from `feature/v4-hybrid` **after CI succeeds**, not from the EXP-020 archived branch.
@@ -190,4 +200,4 @@ User submitted `Updated navigation.zip` (current `logging/InventoryKamera.log`, 
 - Charlotte C4 / Kirara C5 and other constellation reads must remain screenshot-correct.
 - All talent levels need to be checked **after** GOOD's C3/C5 +3 adjustment and team passive correction (Dahlia and Candace C6 correctly display 1/4/4 but export 1/1/1).
 - Never overwrite the verified materials snapshot (`archive/exp020-materials-validated-2026-10-22`, commit `42dfe6a5b24c7b1941fbc69504b0266851fda03d`).
-- EXP-024 remains **PENDING / diagnostic** until actual screenshot evidence and a follow-up GOOD export confirm the behaviour.
+- **Historical criterion satisfied on 2026-10-23 at 11:51:** EXP024 is **PASS / FROZEN BASELINE** for 72 scanned characters. Future changes belong in EXP025 or a new regression experiment.
