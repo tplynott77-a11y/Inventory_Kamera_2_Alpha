@@ -157,6 +157,10 @@ User supplied `Character selection test.zip` (current logs, five forced full-win
 - The first-run target should be `Chongyun, Kinich, TravelerCryo`, then inspect `RESYNC`, expected GOOD values (Chongyun 1/1/1, Kinich C0 7/8/8, Cryo Traveler C4 5/5/6), and absence of header failures and false missing-target warnings.
 - Potential future research: an **optional keyboard-navigation backend** for Character roster travel, with identical identity checkpoints and dedicated ROI/layout validation. Do not replace controller navigation globally until A/B measurements show a benefit; current strong evidence is a missed input in *blind long-gap replay*, not that the controller is inherently incapable.
 
+## UI revisit: selected-character control moved to menu — 2026-10-23
+
+User confirmed that relocating the specific-character button within the fixed `What to Scan` panel **still made it inaccessible** at their Windows DPI scaling. Rather than moving it again, the runtime-added `Specific...` button was **removed entirely** from that panel. A visible top-level **Select Characters...** menu command now appears on the application's menu bar beside File and Options; it opens the existing editor and displays **Select Characters (N)...** while named-target mode is active. The backup **Options → Scan Specific Characters...** entry and **Ctrl+Shift+C** shortcut are retained. There is no longer any additional widget fighting for the 320px-wide panel. No changes to scan logic. Must still be visually verified on the user's 4K DPI environment.
+
 ## If new live evidence is needed
 
 1. Build from `feature/v4-hybrid` **after CI succeeds**, not from the EXP-020 archived branch.
