@@ -1,6 +1,6 @@
 # EXP-024 — Diagnose missing talents without changing recognition
 
-**Date prepared:** 2026-10-23. **Branch:** `feature/v4-hybrid`. **Status:** SCREENSHOT-DRIVEN FIX CANDIDATES COMMITTED; LIVE EXP-024 NOT YET RUN.
+**Date prepared:** 2026-10-23. **Branch:** `feature/v4-hybrid`. **Status:** EXP-024 LIVE RUN ANALYSED; 70/71 SCANNED CHARACTERS' TALENTS RECOVERED; CANONICAL TRAVELER IDENTITY FIX COMMITTED, AWAITING LIVE CONFIRMATION.
 
 ## Baseline (EXP-023)
 - The user-provided `genshinData_GOOD_2026_10_22_22_08.json` contains 71 character records, of which 63 have three positive talents.
@@ -71,6 +71,22 @@ The user provided seven EXP-023 images: `unrecognized_1.png`, `unrecognized_2.pn
 4. **Regression unit tests:** enforce exact header identity, Traveler-only Cryo exception, and C3/C5 candidate acceptance/rejection based on the original screenshots.
 
 **Scope:** The EXP-020 materials archive, Materials code, Artifact/Weapon scanners, and constellation recognition are unchanged. These are candidate improvements, not proven live fixes. The EXP-024 evidence log remains enabled.
+
+## Live EXP-024 run, 2026-10-23 09:29–09:37 — logs + GOOD audit
+
+**Files:** `InventoryKamera(1).log` (370 lines), `InventoryKamera.debug(1).log` (2281 lines), `genshinData_GOOD_2026_10_23_09_37.json`. Characters-only, 3840×2160, game data 7.1.
+
+- **71 exported character records; 70 have three positive exported talents.** All eight EXP023 zeros are repaired: Kinich 7/8/8, Mavuika 6/6/6, Yaoyao 1/2/1, Collei 1/1/1, Chiori 1/1/1, Tighnari 1/1/1, Gorou 1/1/1, YunJin 1/1/1 (raw C3-boosted Burst Lv.4, properly discounted to Lv.1).
+- **Nine `EXP024 HEADER_ALTERNATE_ACCEPT` successes**, including TravelerCryo's constellation verification; Faruzan constellation; YumemizukiMizuki, Kachina, Fischl, Chevreuse, Ningguang, Sucrose, Yanfei talents. Other previously failing headers worked on the primary path this run. **One `EXP024 HEADER_FAILURE`** for TravelerCryo at Talent phase; no `TALENT_FAILURE` and no `TALENT_BOOST_RETRY` messages.
+- **Root cause of Traveler 0/0/0: canonical identity compared to variant export name.** At 09:36:06, primary reader correctly recognised `currentName=Traveler`, `currentElement=Cryo`, but the verifier expected `character.NameGOOD=TravelerCryo`, so exact string comparison failed. The alternative raw read did not get the exact custom display name and could not rescue the same screen. This is a **verification identity mapping bug**, not a missing Cryo form and not a demonstrated talent OCR issue. The Constellation verification had succeeded with an alternate OCR `Cryo / T_2the_homas77` at 09:30:32.
+- **Mika is the single non-mannequin Attributes skip**, raw OCR `cryo./ mika a` after all 20 retries at 09:30:08. Kirara was independently recognised at 09:30:20 and passed C5/talents. The user subsequently reported a separate rerun where Mika passed; the rerun logs/GOOD are not part of this first EXP024 evidence set. Do not change broad OCR because of this isolated visual interference.
+- Mannequin `Farty_Pants` also failed recognition as intended and must remain excluded. Tartaglia's off-party self-only +1 Normal Attack correction was applied at 09:37:15. All 71 constellation and 70 positive talent records were exported successfully, but no independent screenshot audit of every level is claimed.
+
+### Focused post-run fix
+
+Replace the Phase 2/3 verifier's direct `NameGOOD == recognizedName` check with a pure helper that accepts (a) an exact same name and matching element, or (b) canonical `Traveler` with a matching element whose expected GOOD key is exactly `Traveler` + that element. Do **not** accept any different element, wrong character or mannequin. The existing strict fallback remains unchanged. Add regression tests for TravelerCryo, wrong forms, Kirara/Mika, mannequin exclusion, and ordinary characters. **No changes to OCR thresholds, name matching, controller navigation, constellation reader, or Materials subsystem.**
+
+**Validation still required:** the new build must scan and export nonzero Cryo Traveler talents while continuing to read Mika and the other 70 characters. Do not describe this correction as live-proven based only on successful CI.
 
 ## If new live evidence is needed
 
