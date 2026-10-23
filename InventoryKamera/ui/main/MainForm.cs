@@ -138,7 +138,7 @@ namespace InventoryKamera
                 dialog.MinimizeBox = false;
                 dialog.ClientSize = new Size(510, 280);
 
-                var description = new Label
+                var description = new System.Windows.Forms.Label
                 {
                     Location = new Point(14, 12),
                     Size = new Size(480, 75),
