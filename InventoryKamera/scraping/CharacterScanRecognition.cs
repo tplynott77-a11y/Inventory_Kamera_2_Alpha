@@ -107,6 +107,28 @@ namespace InventoryKamera
         /// C3/C5 boosted talent below display Lv.4. This does NOT infer the
         /// correct value; it only requests another OCR attempt.
         /// </summary>
+        /// <summary>
+        /// EXP-024 Chongyun: whole-block OCR sometimes substitutes a colon for
+        /// the period in "Lv. 1" ("Lv: 1"). Keep the original controller
+        /// reader's per-line, first-match and 1-15 constraints; allow only
+        /// that observed punctuation variant, not guesses such as "Lw.".
+        /// </summary>
+        internal static List<int> ParseControllerTalentLevels(string rawOcr)
+        {
+            var levels = new List<int>();
+            if (string.IsNullOrWhiteSpace(rawOcr)) return levels;
+            foreach (string line in rawOcr.Split('\n'))
+            {
+                Match match = Regex.Match(line, @"[Ll][Vv][.:]?\s*(\d+)",
+                    RegexOptions.CultureInvariant);
+                if (match.Success &&
+                    int.TryParse(match.Groups[1].Value, out int level) &&
+                    level >= 1 && level <= 15)
+                    levels.Add(level);
+            }
+            return levels;
+        }
+
         internal static bool ImpossibleConstellationTalentCandidate(
             int constellation, string c3Talent, string c5Talent, int normal, int skill, int burst)
         {
