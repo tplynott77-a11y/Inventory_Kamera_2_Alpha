@@ -52,6 +52,22 @@ namespace InventoryKamera.Tests
         }
 
         [Theory]
+        [InlineData(3, "burst", "skill", 1, 1, 3, true)]
+        [InlineData(3, "burst", "skill", 1, 1, 4, false)]
+        [InlineData(6, "burst", "skill", 1, 3, 4, true)]
+        [InlineData(6, "burst", "skill", 1, 4, 4, false)]
+        [InlineData(0, "burst", "skill", 1, 1, 1, false)]
+        [InlineData(3, null, null, 1, 1, 1, false)]
+        public void EXP024_RetryImpossibleBoostedTalentInsteadOfExportingIt(
+            int constellation, string c3, string c5,
+            int normal, int skill, int burst, bool impossible)
+        {
+            Assert.Equal(impossible,
+                CharacterScanRecognition.ImpossibleConstellationTalentCandidate(
+                    constellation, c3, c5, normal, skill, burst));
+        }
+
+        [Theory]
         [InlineData("Traveler", "cryaq", "", "cryo")]
         [InlineData("Traveler", "gryo", "", "cryo")]
         [InlineData("Kaeya", "gryo", "", "")]
