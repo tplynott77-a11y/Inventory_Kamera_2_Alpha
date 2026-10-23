@@ -1,6 +1,6 @@
 # EXP-024 — Diagnose missing talents without changing recognition
 
-**Date prepared:** 2026-10-23. **Branch:** `feature/v4-hybrid`. **Status:** DIAGNOSTICS COMMITTED; LIVE EXP-024 NOT YET RUN.
+**Date prepared:** 2026-10-23. **Branch:** `feature/v4-hybrid`. **Status:** SCREENSHOT-DRIVEN FIX CANDIDATES COMMITTED; LIVE EXP-024 NOT YET RUN.
 
 ## Baseline (EXP-023)
 - The user-provided `genshinData_GOOD_2026_10_22_22_08.json` contains 71 character records, of which 63 have three positive talents.
@@ -48,6 +48,29 @@ Use the logs to label **each of the eight cases** as: `HEADER_FAILURE` (phase id
 - On each successfully accepted three-row talent read, write `EXP024 TALENT_SUCCESS` with character, attempt number, three detected levels and bounded raw OCR.
 - On exhaustive talent-read failure, write `EXP024 TALENT_FAILURE` with attempt count, maximum number of candidate rows seen, impossible-low-ascension rejection count, and first/last raw OCR reads. Keep forced full-window and talent crops.
 - Compact OCR diagnostics preserve original row boundaries as ` | `, cap the log field at 440 characters and are **never used to accept/reject an OCR result**. Formatter has regression unit tests.
+
+## Screenshot inspection and fixes prepared — 2026-10-23
+
+The user provided seven EXP-023 images: `unrecognized_1.png`, `unrecognized_2.png`, two name-header verification crops, two matching full-window Talents screenshots (Kinich, Chiori), and `talents.png` from Yun Jin.
+
+### Direct visual facts
+
+- `unrecognized_1.png`: the header is plainly **Cryo / T_2the_homas77** and the avatar is actual male Traveler, level 90/90. This is **not** missing on-screen text.
+- `unrecognized_2.png`: **Cryo / Farty_Pants** is the named mannequin. Its separate exclusion is expected; do not map it to Traveler.
+- Kinich's failure crop/full screen: **Dendro / Kinich** is legible; the **Talents** sub-tab is actively selected and combat talents display **7 / 8 / 8**.
+- Chiori's failure crop/full screen: **Geo / Chiori** is legible; the **Talents** sub-tab is actively selected and combat talents display **1 / 1 / 1**.
+- Yun Jin's cropped combat talent rows display **Normal 1 / Skill 1 / Burst 4 (blue, C3 boosted)**. The log's earlier accepted **1 / 1 / 3** is wrong and should be retried; never silently coerce 3 to 4.
+
+**Interpretation:** The Kinich/Chiori screenshots rule out navigational mismatch in these instances. The seven `HEADER_FAILURE`s are likely caused by the existing fixed 110-threshold OCR / strict slash-based header parser on colorful talent backgrounds. The precise failure mechanism cannot be proved from screenshots alone; the EXP-024 raw OCR diagnostic logger will give the missing discrimination. Traveler's raw screenshot and log confirm its custom name/element, so validation against the local `characters.json` may reject Cryo if the element list is stale.
+
+### Candidate source changes (all must still pass a live run)
+
+1. **Exact-match header rescue, only in Phase 2/3 verification:** after the normal five-attempt check fails, separately OCR the header with thresholds 175/210 (SingleLine and Auto) and accept it **only if the cleaned full header exactly equals expected element + on-screen display name**. Custom names are resolved from the current `Characters` database. This does not accept a wrong character solely because the roster cursor should have been on them.
+2. **Cryo Traveler recognition:** allow `CharacterMatchesElement("Traveler", "Cryo")` as a **screenshot-confirmed narrowly scoped exception** for a stale version-7.1 database, while leaving mannequin and other-character element validation intact and null-safe.
+3. **C3/C5 talent candidate guard:** lookup each character's `ConstellationOrder`. If the scanned raw level of a talent that is supposed to have +3 is below 4, **retry the OCR** rather than accepting, subtracting three, or inventing a repaired level. Handles Yun Jin's mistaken Burst Lv.3 without hardcoding Burst=4. Pyro Traveler's unusual constellation inference stays excluded from this check.
+4. **Regression unit tests:** enforce exact header identity, Traveler-only Cryo exception, and C3/C5 candidate acceptance/rejection based on the original screenshots.
+
+**Scope:** The EXP-020 materials archive, Materials code, Artifact/Weapon scanners, and constellation recognition are unchanged. These are candidate improvements, not proven live fixes. The EXP-024 evidence log remains enabled.
 
 ## If new live evidence is needed
 
