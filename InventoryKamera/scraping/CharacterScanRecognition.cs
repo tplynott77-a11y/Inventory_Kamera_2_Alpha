@@ -64,7 +64,17 @@ namespace InventoryKamera
             string Normalize(string value) =>
                 Regex.Replace(value, @"[\W_]", "", RegexOptions.CultureInvariant).ToLowerInvariant();
 
-            return Normalize(raw) == Normalize(expectedElement) + Normalize(expectedDisplayName);
+            string expected = Normalize(expectedElement) + Normalize(expectedDisplayName);
+            if (Normalize(raw) == expected) return true;
+
+            // EXP-024 live screenshot: "cryo / chongyun, 2" on the
+            // correct Talents page. Only tolerate a comma plus 1-2 OCR
+            // digits AFTER a full, exact element/name match. Never fuzzy
+            // match a different character or accept arbitrary suffixes.
+            Match trailingDigitNoise = Regex.Match(raw,
+                @"^(.*?)\s*,\s*[0-9]{1,2}\s*$", RegexOptions.Singleline);
+            return trailingDigitNoise.Success &&
+                Normalize(trailingDigitNoise.Groups[1].Value) == expected;
         }
 
         /// <summary>
@@ -96,6 +106,39 @@ namespace InventoryKamera
             return string.Equals(recognizedName, "Traveler", StringComparison.Ordinal) &&
                 string.Equals(expectedGoodName, "Traveler" + expectedElement,
                     StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Opt-in experimental named-character scan. Names are exact GOOD keys
+        /// after removing whitespace/punctuation, not fuzzy OCR guesses.
+        /// Examples: "Chongyun", "Kinich", "TravelerCryo", "Yun Jin".
+        /// </summary>
+        internal static HashSet<string> ParseRequestedCharacterNames(string text)
+        {
+            var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(text)) return selected;
+            foreach (string token in text.Split(new[] { ',', ';', '\n', '\r' },
+                         StringSplitOptions.RemoveEmptyEntries))
+            {
+                string key = NormalizeRequestedCharacterName(token);
+                if (key.Length > 0) selected.Add(key);
+            }
+            return selected;
+        }
+
+        internal static string NormalizeRequestedCharacterName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return "";
+            string normalized = Regex.Replace(name, @"[^\p{L}\p{N}]", "")
+                .ToLowerInvariant();
+            // Allow the natural "Cryo Traveler" ordering in addition to
+            // GOOD's "TravelerCryo". No inferred or invented element.
+            foreach (string element in new[]
+                { "anemo", "geo", "electro", "dendro", "hydro", "pyro", "cryo" })
+            {
+                if (normalized == element + "traveler") return "traveler" + element;
+            }
+            return normalized;
         }
 
         internal static bool IsObservedCryoTraveler(string canonicalName, string element) =>
