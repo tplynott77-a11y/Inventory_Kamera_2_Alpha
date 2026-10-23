@@ -61,7 +61,7 @@ Special handling confirmed: Cryo Traveler C3 adjusts raw burst 9 to GOOD 6; Chon
 Against earlier full export `genshinData_GOOD_2026_10_23_10_54.json`, the playable key set and all other character fields match **except**:
 
 1. `Chongyun`: invalid review-zero `0/0/0` -> validated base `1/1/1`, which is the intended repair.
-2. `Keqing`: previous `6/8/8` -> current `6/6/8`. The previous 10:54 log had a **10-attempt** accepted OCR of `6/8/8`; this scan's **2-attempt** accepted OCR reads `6/6/8`. Older GOOD snapshots on Oct 15, Oct 22 and Oct 23 10:11 also read `6/6/8`. Thus the single `8` is an **isolated historical outlier**, not evidence of a new regression. This does **not** independently prove Keqing's real in-game skill level: it is a residual spot-check option if a screenshot-level audit is requested.
+2. `Keqing`: previous `6/8/8` -> current `6/6/8`. The previous 10:54 log had a **10-attempt** accepted OCR of `6/8/8`; this scan's **2-attempt** accepted OCR reads `6/6/8`. Older GOOD snapshots on Oct 15, Oct 22 and Oct 23 10:11 also read `6/6/8`. Thus the single `8` is an **isolated historical outlier**, not evidence of a new regression. **User follow-up, 2026-10-23:** The account owner explicitly confirms Keqing's actual talent levels are **6/6/8**, resolving this previously optional spot-check. The isolated 6/8/8 scan was a talent OCR outlier, not an upgrade or a regression.
 
 Relative to `genshinData_GOOD_2026_10_23_10_11.json`, the only value differences are the two expected fixes: Chongyun `0/0/0` -> `1/1/1`, Cryo Traveler `5/5/9` -> `5/5/6`. All other values, including Keqing `6/6/8`, match.
 
