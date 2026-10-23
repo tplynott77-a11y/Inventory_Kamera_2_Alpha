@@ -110,6 +110,25 @@ The user supplied six EXP024 screenshots: `attributes.png`, `attributes_full_384
 - **Minimal source correction:** controller talent parser now recognises an optional **period OR colon** after `Lv`, preserving the same per-line first-match rule, the 1–15 range and existing `Flv.` behaviour (Qiqi). It does not guess digits or accept `Lw.`. The active scanner invokes the new pure `ParseControllerTalentLevels` helper, which has regression tests using Chongyun's *exact initial OCR* `Lv: 1 / Lv.4 / Lv.4`, plus negative and backwards-compatibility cases.
 - This improvement should let Chongyun pass at the **first OCR attempt** given the recorded first frame; needs a **fresh in-game build and scan** to prove end-to-end correctness. No constellation, navigation, equipment, or Materials code was changed for Chongyun.
 
+## Full-scan follow-up (2026-10-23 10:45–10:54) and named-character preview
+
+User supplied `InventoryKamera(3).log`, `InventoryKamera.debug(3).log`, `genshinData_GOOD_2026_10_23_10_54.json` and four diagnostic images for Kinich/Chongyun.
+
+**Results:** 72/72 distinct expected playable characters identified; 71/72 characters with valid positive talent values; the only zero is **Chongyun**. **Cryo Traveler C4 is fixed live**: raw OCR 5/5/9, GOOD **5/5/6**. YunJin C3 remains correctly 1/1/1 after raw 1/1/4. Mika C4, Kirara C5, Kinich 7/8/8, and the other previously missing talents are present. Farty Pants is the intentionally excluded mannequin and still generates the known non-playable warning.
+
+**Two remaining verification warnings, now screenshot explained:**
+- **Kinich constellation:** at 10:47:51, `EXP024 HEADER_FAILURE` expected Kinich, read **Electro / Keqing**, even though the forced full-window screenshot shows Kinich on the Constellation page with six locked nodes (C0). This may be transient UI/capture timing, not proof of persistent controller drift; his talents later read 7/8/8 correctly. Added two bounded fresh-frame attempts after primary and alternate OCR fail. Acceptance still requires matching expected name **and element**.
+- **Chongyun talents:** at 10:53:51, `EXP024 HEADER_FAILURE` expected Cryo/Chongyun but raw header OCR was **`cryo / chongyun, 2`**. The forced screenshot shows correct Chongyun on the Talents page with visible **1/4/4**, and the earlier C5 screenshots corroborate C5. The colon-aware talent parser fix from earlier is **not tested by this run**, because the header gate skipped `ScanTalents` completely. Added a verification-only, tightly scoped tolerance for a trailing **comma + 1–2 digits** after an otherwise exact name+element; no fuzzy matching, no assumption that the cursor is correct. Expected GOOD **1/1/1** after C3/C5 subtraction, still needs a new live validation.
+
+**New opt-in named-character scan** (EXPERIMENTAL, not live validated):
+- Existing `All` or `Chars to Scan N` remains when the new named-target setting is empty.
+- The main UI has a `Specific...` / `Selected: N` button that opens a multiline dialog. Input example `Chongyun, Kinich, TravelerCryo`; accepts line/comma/semicolon-separated **exact GOOD keys**, ignoring spaces/case only, no fuzzy choices.
+- Named mode overrides the first-N limit. Phase 1 traverses the roster reading headers to locate requested targets, taking Attributes data for targets and the real first four party members. If all names found, phase 1 terminates early. Phases 2 and 3 use existing recorded shoulder-tap gaps and read **only selected characters**, starting from the correct physical slot and using the existing backward partial-pass path; a full lap supports late/missing names. Missing target names are explicitly reported, never substituted.
+- Named mode corrects Tartaglia/Skirk buffs from **physical** first-four roster slots, rather than assuming chosen names are the active party. Only targets are emitted in the GOOD JSON. This is a *partial* file for testing, not a replacement for a complete account export.
+- The UI setting is persisted and shown as `Selected: N` while active; clear its text in the dialog to return to normal mode. No changes to materials, weapons, artifacts, navigation constants, or the frozen EXP020 558/558 materials archive.
+
+**Validation state:** compile/unit tests and Windows packaging pending final latest CI; **in-game named-mode test not yet run**.
+
 ## If new live evidence is needed
 
 1. Build from `feature/v4-hybrid` **after CI succeeds**, not from the EXP-020 archived branch.
