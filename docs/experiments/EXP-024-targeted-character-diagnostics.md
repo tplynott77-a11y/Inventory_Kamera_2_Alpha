@@ -1,6 +1,6 @@
 # EXP-024 — Diagnose missing talents without changing recognition
 
-**Date prepared:** 2026-10-23. **Branch:** `feature/v4-hybrid`. **Status:** EXP-024 LIVE RUN ANALYSED; 70/71 SCANNED CHARACTERS' TALENTS RECOVERED; CANONICAL TRAVELER IDENTITY FIX COMMITTED, AWAITING LIVE CONFIRMATION.
+**Date prepared:** 2026-10-23. **Branch:** `feature/v4-hybrid`. **Status:** NAMED-CHARACTER MODE LIVE VALIDATED (3/3 EXACT EXPECTED GOOD VALUES); FULL 72-CHARACTER REVALIDATION STILL PENDING.
 
 ## Baseline (EXP-023)
 - The user-provided `genshinData_GOOD_2026_10_22_22_08.json` contains 71 character records, of which 63 have three positive talents.
@@ -160,6 +160,20 @@ User supplied `Character selection test.zip` (current logs, five forced full-win
 ## UI revisit: selected-character control moved to menu — 2026-10-23
 
 User confirmed that relocating the specific-character button within the fixed `What to Scan` panel **still made it inaccessible** at their Windows DPI scaling. Rather than moving it again, the runtime-added `Specific...` button was **removed entirely** from that panel. A visible top-level **Select Characters...** menu command now appears on the application's menu bar beside File and Options; it opens the existing editor and displays **Select Characters (N)...** while named-target mode is active. The backup **Options → Scan Specific Characters...** entry and **Ctrl+Shift+C** shortcut are retained. There is no longer any additional widget fighting for the 320px-wide panel. No changes to scan logic. Must still be visually verified on the user's 4K DPI environment.
+
+## Named-character navigation re-test — PASS (2026-10-23 11:35–11:36)
+
+User submitted `Updated navigation.zip` (current `logging/InventoryKamera.log`, `logging/InventoryKamera.debug.log` and per-character visual evidence) and `genshinData_GOOD_2026_10_23_11_36.json`. 3840×2160, Characters only, Normal scanner delay (setting 1), exact named targets `Chongyun, Kinich, TravelerCryo`. This uses the conservative controller gap timing plus OCR re-anchor implementation and newly accessible top-level **Select Characters...** menu.
+
+**In-game results: PASS for all three named targets.**
+- Phase 1: 3/3 names found after 61 physical slots (`11:35:51`), no false "target missing" warnings.
+- Phase 2 Constellations: Chongyun **C5** (`11:35:56`); Kinich **C0** (`11:36:12`); TravelerCryo **C4** (`11:36:23`).
+- Phase 3 talents: all three `EXP024 TALENT_SUCCESS attempt=1 rows=3`. Raw Chongyun 1/4/4 → GOOD **1/1/1** after C3 Burst and C5 Skill correction; Kinich 7/8/8 → GOOD **7/8/8**; raw Cryo Traveler 5/5/9 → GOOD **5/5/6** after C3 Burst correction.
+- **Zero** `EXP024 NAMED_SCAN RESYNC`, **zero** `RESYNC_FAILED`, **zero** `HEADER_FAILURE`, and **zero** `TALENT_FAILURE` entries. Kinich's talent header OCR did have several ordinary recognition retries before succeeding, but no navigation resync was needed.
+- One expected *non-playable* warning: custom mannequin `cryo / farty_pants 7.` was rejected and omitted as designed; do not count as a lost playable character.
+- Run started `11:35:00`, finished scanning `11:36:46`, exported GOOD at `11:36:53` (roughly **113 seconds to export**). Output is **partial GOOD** (3 characters), never a replacement for a full 72-character baseline.
+
+**Conclusion:** opt-in named-character scan and controller position-checking are **live validated for this specific 3-target test**. Results do **not** demonstrate every possible target order or a fresh complete 72/72 scan; do not yet freeze character scanning on only this partial test. No keyboard-backend change was required. EXP-020 558/558 materials archive untouched.
 
 ## If new live evidence is needed
 
