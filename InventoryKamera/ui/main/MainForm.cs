@@ -40,9 +40,9 @@ namespace InventoryKamera
 
         private bool running = false;
 
-        // Opt-in exact GOOD-key selection, configured with an explicit dialog.
-        // Empty means retain the established All / first-N scanning behavior.
-        private Button specificCharactersButton;
+        // Opt-in exact GOOD-key selection. Keep the selector in the MenuStrip,
+        // which already handles DPI layout, not the crowded scan controls panel.
+        private ToolStripMenuItem selectCharactersMenuItem;
 
         public MainForm()
         {
@@ -61,7 +61,7 @@ namespace InventoryKamera
             databaseManager = new DatabaseManager();
 
             BindSettings();
-            InitializeSpecificCharacterScanButton();
+            InitializeSpecificCharacterScanMenu();
 
             Language_ComboBox.SelectedItem = "ENG";
 
@@ -102,52 +102,42 @@ namespace InventoryKamera
 #endif
         }
 
-        private void InitializeSpecificCharacterScanButton()
+        private void InitializeSpecificCharacterScanMenu()
         {
-            // EXP024: the original 101px button at x=200 was crowded/hidden
-            // on the user's 3840x2160 high-DPI screen. Give it a prominent
-            // row in the right column, beside Dev Items / Materials.
-            specificCharactersButton = new Button
+            // EXP024: A fixed 320px-wide panel at high Windows DPI has no
+            // reliable space for a new button. MenuStrip handles scaling and
+            // placement, so put the selector prominently in the TOP menu bar.
+            selectCharactersMenuItem = new ToolStripMenuItem
             {
-                Name = "SpecificCharactersButton",
-                Location = new Point(135, 219),
-                Size = new Size(167, 58),
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                FlatStyle = FlatStyle.Flat,
-                BackColor = Color.MidnightBlue,
-                ForeColor = Color.White,
-                UseVisualStyleBackColor = false,
-                TabIndex = 117,
-                AutoEllipsis = false
+                Name = "SelectCharactersMenuItem",
+                ToolTipText = "Scan only named characters (experimental)"
             };
-            specificCharactersButton.FlatAppearance.BorderSize = 0;
-            specificCharactersButton.Click += (sender, args) => EditSpecificCharacterNames();
-            WhatToScanGroupBox.Controls.Add(specificCharactersButton);
-            specificCharactersButton.BringToFront();
+            selectCharactersMenuItem.Click += (sender, args) => EditSpecificCharacterNames();
+            menuStrip1.Items.Insert(2, selectCharactersMenuItem);
 
-            // Guaranteed accessible even if layout is scaled/clipped by
-            // Windows: Options > Scan Specific Characters... opens the same
-            // editor. No new window or scan logic is required.
-            var menuCommand = new ToolStripMenuItem("Scan Specific Characters...")
+            // Retain the alternative Options entry and existing shortcut.
+            // Both access the SAME selection dialog; there is no separate mode.
+            var optionsCommand = new ToolStripMenuItem("Scan Specific Characters...")
             {
                 ShortcutKeys = Keys.Control | Keys.Shift | Keys.C
             };
-            menuCommand.Click += (sender, args) => EditSpecificCharacterNames();
-            keysToolStripMenuItem.DropDownItems.Add(menuCommand);
-            UpdateSpecificCharacterScanButton();
+            optionsCommand.Click += (sender, args) => EditSpecificCharacterNames();
+            keysToolStripMenuItem.DropDownItems.Add(optionsCommand);
+
+            UpdateSpecificCharacterScanMenu();
         }
 
-        private void UpdateSpecificCharacterScanButton()
+        private void UpdateSpecificCharacterScanMenu()
         {
             int count = CharacterScanRecognition.ParseRequestedCharacterNames(
                 Properties.Settings.Default.SpecificCharacterNames).Count;
-            specificCharactersButton.Text = count == 0
-                ? "Scan Specific\nCharacters..."
-                : $"Specific Characters\n({count} selected)";
-            specificCharactersButton.AccessibleName = "Scan specific characters";
-            ZeroMeansAllTooltips.SetToolTip(specificCharactersButton,
-                count == 0 ? "Select specific characters by exact GOOD name (optional)" :
-                "Named-character mode is ON; click to edit or clear. It overrides All / first-N. This exports ONLY the selected characters.");
+            selectCharactersMenuItem.Text = count == 0
+                ? "Select Characters..."
+                : $"Select Characters ({count})...";
+            selectCharactersMenuItem.ToolTipText = count == 0
+                ? "Select named characters to scan"
+                : $"Named-character mode ON: {count} selected. Click to edit or clear. " +
+                  "All / first-N is overridden until cleared.";
         }
 
         private void EditSpecificCharacterNames()
@@ -195,7 +185,7 @@ namespace InventoryKamera
                 {
                     Properties.Settings.Default.SpecificCharacterNames = names.Text.Trim();
                     Properties.Settings.Default.Save();
-                    UpdateSpecificCharacterScanButton();
+                    UpdateSpecificCharacterScanMenu();
                 }
             }
         }
