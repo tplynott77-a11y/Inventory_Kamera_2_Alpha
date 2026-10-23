@@ -1,6 +1,8 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using Xunit;
+using Newtonsoft.Json.Linq;
 
 namespace InventoryKamera.Tests
 {
@@ -58,6 +60,88 @@ namespace InventoryKamera.Tests
         {
             Assert.Equal(expected, CharacterScanRecognition.MatchesExpectedCharacter(
                 expectedName, expectedElement, scannedName, scannedElement));
+        }
+
+        [Theory]
+        [InlineData(null, "burst", "skill", true)]
+        [InlineData("{}", "burst", "skill", true)]
+        [InlineData("{'cryo':['burst','skill']}", "burst", "skill", false)]
+        [InlineData("{'cryo':['skill','burst']}", "burst", "skill", true)]
+        [InlineData("{'cryo':['burst','burst']}", "burst", "skill", true)]
+        public void EXP024_CryoTravelerBoostsRepairMissingOrWrongOrder(
+            string json, string expectedC3, string expectedC5, bool expectedRepair)
+        {
+            JToken stored = json == null ? null : JToken.Parse(json.Replace('\'', '"'));
+            Assert.True(CharacterScanRecognition.TryResolveConstellationTalentOrder(
+                "TravelerCryo", "Cryo", stored,
+                out string c3, out string c5, out bool repaired));
+            Assert.Equal(expectedC3, c3);
+            Assert.Equal(expectedC5, c5);
+            Assert.Equal(expectedRepair, repaired);
+            Assert.False(CharacterScanRecognition.ImpossibleConstellationTalentCandidate(
+                4, c3, c5, 5, 5, 9));
+        }
+
+        [Fact]
+        public void EXP024_CryoTravelerBaseBurstIsSixForScreenshotConfirmedC4()
+        {
+            Assert.True(CharacterScanRecognition.TryResolveConstellationTalentOrder(
+                "TravelerCryo", "Cryo", null,
+                out string c3, out string c5, out _));
+            var levels = new System.Collections.Generic.Dictionary<string, int>
+            {
+                ["auto"] = 5, ["skill"] = 5, ["burst"] = 9
+            };
+            levels[c3] -= 3;
+            Assert.Equal(5, levels["auto"]);
+            Assert.Equal(5, levels["skill"]);
+            Assert.Equal(6, levels["burst"]);
+            Assert.Equal("skill", c5);
+        }
+
+        [Fact]
+        public void EXP024_TravelerDatabaseRepairPreservesOtherElementOrders()
+        {
+            var db = JObject.Parse(@"{
+                'Element':['hydro','pyro'],
+                'ConstellationOrder':{
+                    'hydro':['skill','burst'],
+                    'pyro':['skill','burst']
+                }
+            }".Replace('\'', '"'));
+            var hydroBefore = db["ConstellationOrder"]["hydro"].DeepClone();
+            var pyroBefore = db["ConstellationOrder"]["pyro"].DeepClone();
+            Assert.True(CharacterScanRecognition.EnsureCryoTravelerMetadata(db));
+            Assert.Equal("burst", (string)db["ConstellationOrder"]["cryo"][0]);
+            Assert.Equal("skill", (string)db["ConstellationOrder"]["cryo"][1]);
+            Assert.Equal(hydroBefore, db["ConstellationOrder"]["hydro"]);
+            Assert.Equal(pyroBefore, db["ConstellationOrder"]["pyro"]);
+            Assert.Equal(1, ((JArray)db["Element"]).Count(v => (string)v == "cryo"));
+            Assert.False(CharacterScanRecognition.EnsureCryoTravelerMetadata(db));
+        }
+
+        [Theory]
+        [InlineData("TravelerHydro","Hydro","{'hydro':['skill','burst']}","skill","burst")]
+        [InlineData("TravelerPyro","Pyro","{'pyro':['burst','skill']}","burst","skill")]
+        [InlineData("Kirara","Dendro","['skill','burst']","skill","burst")]
+        public void EXP024_ExistingNonCryoOrdersUnchanged(
+            string name, string element, string json, string expectedC3, string expectedC5)
+        {
+            Assert.True(CharacterScanRecognition.TryResolveConstellationTalentOrder(
+                name, element, JToken.Parse(json.Replace('\'', '"')),
+                out string c3, out string c5, out bool repaired));
+            Assert.Equal(expectedC3, c3);
+            Assert.Equal(expectedC5, c5);
+            Assert.False(repaired);
+        }
+
+        [Fact]
+        public void EXP024_MissingOtherTravelerFormDoesNotGetCryoDefault()
+        {
+            Assert.False(CharacterScanRecognition.TryResolveConstellationTalentOrder(
+                "TravelerHydro", "Hydro", new JObject(),
+                out _, out _, out bool repaired));
+            Assert.False(repaired);
         }
 
         [Theory]
