@@ -71,6 +71,32 @@ namespace InventoryKamera
         /// Traveler. A cached characters.json may not yet include that form.
         /// Do not relax element validation for anyone else or for mannequins.
         /// </summary>
+        /// <summary>
+        /// EXP-024 log-confirmed identity mismatch: ScanNameAndElement returns
+        /// canonical "Traveler", while GOOD stores the current form as
+        /// "TravelerCryo" (or Traveler + another element). Do not spend extra
+        /// OCR attempts or reject an already-validated canonical identity.
+        /// Element agreement is mandatory, including for regular characters.
+        /// </summary>
+        internal static bool MatchesExpectedCharacter(
+            string expectedGoodName, string expectedElement,
+            string recognizedName, string recognizedElement)
+        {
+            if (string.IsNullOrWhiteSpace(expectedGoodName) ||
+                string.IsNullOrWhiteSpace(expectedElement) ||
+                string.IsNullOrWhiteSpace(recognizedName) ||
+                string.IsNullOrWhiteSpace(recognizedElement) ||
+                !string.Equals(expectedElement, recognizedElement, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (string.Equals(expectedGoodName, recognizedName, StringComparison.Ordinal))
+                return true;
+
+            return string.Equals(recognizedName, "Traveler", StringComparison.Ordinal) &&
+                string.Equals(expectedGoodName, "Traveler" + expectedElement,
+                    StringComparison.OrdinalIgnoreCase);
+        }
+
         internal static bool IsObservedCryoTraveler(string canonicalName, string element) =>
             string.Equals(canonicalName, "Traveler", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(element, "Cryo", StringComparison.OrdinalIgnoreCase);
