@@ -100,6 +100,16 @@ User supplied `InventoryKamera(2).log`, `InventoryKamera.debug(2).log`, and `gen
 
 **Scope:** No alteration to EXP020 Materials archive, navigation, OCR thresholds, other character constellation orders, Weapons, or Artifacts.
 
+## Chongyun screenshot-confirmed parser fix — 2026-10-23
+
+The user supplied six EXP024 screenshots: `attributes.png`, `attributes_full_3840x2160.png`, `talents_unconfirmed.png`, `talents_unconfirmed_full_3840x2160.png`, and `constellation_greedy_5.png` / `constellation_greedy_6.png`.
+
+- The 4K full-window screenshot confirms **Cryo / Chongyun** and the **Talents** sub-tab was genuinely selected. The crop clearly shows **Normal Lv.1 / Skill Lv.4 / Burst Lv.4**. This is NOT a roster-navigation error.
+- Constellation screenshots show **C5 active, C6 locked**, consistent with logged Chongyun C5. At C5, the C3/C5 bonuses apply to the skill and burst respectively; target base GOOD is **1/1/1**, not 0/0/0.
+- His logged *first* OCR frame already contained all three visible values, but one was transcribed as **`Lv: 1`**, whereas the production regex `[Ll][Vv]\\.?\\s*(\\d+)` accepted only an optional dot, not a colon. It therefore counted only two levels and exhausted all 20 retries. A later frame's `Lw. 1` is not accepted as verified evidence because it changes a letter.
+- **Minimal source correction:** controller talent parser now recognises an optional **period OR colon** after `Lv`, preserving the same per-line first-match rule, the 1–15 range and existing `Flv.` behaviour (Qiqi). It does not guess digits or accept `Lw.`. The active scanner invokes the new pure `ParseControllerTalentLevels` helper, which has regression tests using Chongyun's *exact initial OCR* `Lv: 1 / Lv.4 / Lv.4`, plus negative and backwards-compatibility cases.
+- This improvement should let Chongyun pass at the **first OCR attempt** given the recorded first frame; needs a **fresh in-game build and scan** to prove end-to-end correctness. No constellation, navigation, equipment, or Materials code was changed for Chongyun.
+
 ## If new live evidence is needed
 
 1. Build from `feature/v4-hybrid` **after CI succeeds**, not from the EXP-020 archived branch.
