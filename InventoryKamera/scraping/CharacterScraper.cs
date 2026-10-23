@@ -657,75 +657,50 @@ namespace InventoryKamera
 
 			if (character.Constellation < 3) return;
 
-			string lookupKey = character.NameGOOD.Contains("Traveler") ? "traveler" : character.NameGOOD.ToLower();
+            string lookupKey = character.NameGOOD.Contains("Traveler")
+                ? "traveler" : character.NameGOOD.ToLowerInvariant();
+            GenshinProcesor.Characters.TryGetValue(lookupKey, out var characterData);
+            JToken storedOrder = characterData?["ConstellationOrder"];
 
-			if (GenshinProcesor.Characters.TryGetValue(lookupKey, out var characterData))
-			{
-				if (characterData["ConstellationOrder"] == null)
-				{
-					// Every character in the database should have this field -- its absence
-					// means the character data failed to fully download/parse, not that this
-					// character legitimately lacks constellation-order data.
-					progressReporter.AddError($"{character.NameGOOD}: missing ConstellationOrder data. Talent levels were not adjusted for constellation bonuses.");
-					return;
-				}
+            if (!CharacterScanRecognition.TryResolveConstellationTalentOrder(
+                    character.NameGOOD, character.Element, storedOrder,
+                    out string talentLeveledAtConst3, out string talentLeveledAtConst5,
+                    out bool repairedCryoOrder))
+            {
+                progressReporter.AddError($"{character.NameGOOD}: missing or malformed ConstellationOrder data. Talent levels were not adjusted for constellation bonuses.");
+                return;
+            }
 
-				// For the Traveler the order is keyed by element (a JObject); every other
-				// character stores a flat [const3Talent, const5Talent] JArray. Resolve to that
-				// two-element array up front and validate it. A Traveler whose per-element entry
-				// is missing or malformed (an incomplete auto-build, or a legacy nested
-				// characters.json) would otherwise index into null here and throw a
-				// NullReferenceException that aborts the entire character scan.
-				JToken constellationOrder;
-				if (character.NameGOOD.Contains("Traveler"))
-				{
-					constellationOrder = characterData["ConstellationOrder"] is JObject elementOrders && character.Element != null
-						? elementOrders[character.Element.ToLower()]
-						: null;
-				}
-				else
-				{
-					constellationOrder = characterData["ConstellationOrder"];
-				}
+            if (repairedCryoOrder)
+                Logger.Warn("EXP024 TRAVELER_CRYO_ORDER_REPAIRED: database missing/wrong Cryo mapping; C3=burst, C5=skill.");
 
-				if (!(constellationOrder is JArray order) || order.Count < 2)
-				{
-					progressReporter.AddError($"{character.NameGOOD}: missing or malformed ConstellationOrder data. Talent levels were not adjusted for constellation bonuses.");
-					return;
-				}
+            bool impossibleC3 = character.Constellation >= 3 &&
+                (!character.Talents.TryGetValue(talentLeveledAtConst3, out int boostedAtC3) || boostedAtC3 < 4);
+            bool impossibleC5 = character.Constellation >= 5 &&
+                (!character.Talents.TryGetValue(talentLeveledAtConst5, out int boostedAtC5) || boostedAtC5 < 4);
+            if (impossibleC3 || impossibleC5)
+            {
+                progressReporter.AddError($"{character.NameGOOD}: constellation and displayed talent levels disagree; review screenshots.");
+                character.Talents["auto"] = 0;
+                character.Talents["skill"] = 0;
+                character.Talents["burst"] = 0;
+                return;
+            }
 
-				string talentLeveledAtConst3 = (string)order[0];
-				string talentLeveledAtConst5 = (string)order[1];
+            if (character.Constellation >= 3)
+            {
+                Logger.Info("{0} constellation 3+, adjusting scanned {1} level",
+                    character.NameGOOD, talentLeveledAtConst3);
+                character.Talents[talentLeveledAtConst3] -= 3;
+            }
 
-				// A C3/C5 boosted talent cannot be displayed below Lv. 4.
-                // If it is, either the constellation OCR or the level OCR
-                // disagreed. Preserve the character as review-required.
-                bool impossibleC3 = character.Constellation >= 3 &&
-                    (!character.Talents.TryGetValue(talentLeveledAtConst3, out int boostedAtC3) || boostedAtC3 < 4);
-                bool impossibleC5 = character.Constellation >= 5 &&
-                    (!character.Talents.TryGetValue(talentLeveledAtConst5, out int boostedAtC5) || boostedAtC5 < 4);
-                if (impossibleC3 || impossibleC5)
-                {
-                    progressReporter.AddError($"{character.NameGOOD}: constellation and displayed talent levels disagree; review screenshots.");
-                    character.Talents["auto"] = 0;
-                    character.Talents["skill"] = 0;
-                    character.Talents["burst"] = 0;
-                    return;
-                }
-
-                if (character.Constellation >= 3)
-                {
-                    Logger.Info("{0} constellation 3+, adjusting scanned {1} level", character.NameGOOD, talentLeveledAtConst3);
-                    character.Talents[talentLeveledAtConst3] -= 3;
-                }
-
-                if (character.Constellation >= 5)
-                {
-                    Logger.Info("{0} constellation 5+, adjusting scanned {1} level", character.NameGOOD, talentLeveledAtConst5);
-                    character.Talents[talentLeveledAtConst5] -= 3;
-                }
-			}
-		}
+            if (character.Constellation >= 5)
+            {
+                Logger.Info("{0} constellation 5+, adjusting scanned {1} level",
+                    character.NameGOOD, talentLeveledAtConst5);
+                character.Talents[talentLeveledAtConst5] -= 3;
+            }
+        }
 
 		public static string ScanMainCharacterName(IOcrService ocrService, IImagePreprocessor imagePreprocessor, IScanProgressReporter progressReporter)
 		{
@@ -1164,17 +1139,11 @@ namespace InventoryKamera
             {
                 string key = character.NameGOOD.Contains("Traveler")
                     ? "traveler" : character.NameGOOD.ToLowerInvariant();
-                if (GenshinProcesor.Characters.TryGetValue(key, out var metadata))
-                {
-                    JToken orderToken = metadata["ConstellationOrder"];
-                    if (character.NameGOOD.Contains("Traveler") && orderToken is JObject perElement)
-                        orderToken = perElement[character.Element?.ToLowerInvariant()];
-                    if (orderToken is JArray order && order.Count >= 2)
-                    {
-                        c3Talent = (string)order[0];
-                        c5Talent = (string)order[1];
-                    }
-                }
+                GenshinProcesor.Characters.TryGetValue(key, out var metadata);
+                // Same resolver as final GOOD correction, even with stale 7.1 data.
+                CharacterScanRecognition.TryResolveConstellationTalentOrder(
+                    character.NameGOOD, character.Element, metadata?["ConstellationOrder"],
+                    out c3Talent, out c5Talent, out _);
             }
 
 			const int requiredRows = 3;
