@@ -29,6 +29,7 @@ namespace InventoryKamera
         public string WandererName => Properties.Settings.Default.WandererName;
         public int SortByObtained => Properties.Settings.Default.SortByObtained;
         public int NumOfCharToScan => Properties.Settings.Default.NumOfCharToScan;
+        public string SpecificCharacterNames => Properties.Settings.Default.SpecificCharacterNames;
         public string Manequin1Name => Properties.Settings.Default.Manequin1Name;
         public string Manequin2Name => Properties.Settings.Default.Manequin2Name;
     }
