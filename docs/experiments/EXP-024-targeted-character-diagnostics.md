@@ -9,6 +9,27 @@
 - All 71 constellation levels were identical between EXP-022 and EXP-023; known corrected examples **Charlotte C4** and **Kirara C5** remain correct. Screenshot-by-screenshot audit pending.
 - Do not import this character GOOD into the trusted account database.
 
+## EXP-023 text-log triage — completed 2026-10-23
+
+The user supplied `InventoryKamera.log` (299 lines) and `InventoryKamera.debug.log` (2177 lines) for the 2026-10-22 22:00–22:08 Characters-only EXP-023 run. The logs decisively **separate the eight zero records into two categories**:
+
+| Character | Log observation | Diagnostic classification |
+| --- | --- | --- |
+| Kinich | 22:07:41 — Talent header expected Kinich but unreadable after 5 attempts | HEADER_FAILURE |
+| Mavuika | 22:07:45 — Talent header expected Mavuika but unreadable after 5 attempts | HEADER_FAILURE |
+| Yaoyao | 22:08:04 — Talent header expected Yaoyao but unreadable after 5 attempts | HEADER_FAILURE |
+| Collei | 22:08:10 — Talent header expected Collei but unreadable after 5 attempts | HEADER_FAILURE |
+| Chiori | 22:08:13 — Talent header expected Chiori but unreadable after 5 attempts | HEADER_FAILURE |
+| Tighnari | 22:08:15 — Talent header expected Tighnari but unreadable after 5 attempts | HEADER_FAILURE |
+| YunJin | 22:08:17–19 — Header read successfully. Combat OCR retried after 1–2 detected rows, then reported 1/1/3; `constellation and displayed talent levels disagree` | CONSTELLATION_TALENT_INCONSISTENCY (not header failure) |
+| Gorou | 22:08:20 — Talent header expected Gorou but unreadable after 5 attempts | HEADER_FAILURE |
+
+**Key conclusions:** Seven missed talents were not passed to `ScanTalents` at all; their zeroed outputs were caused by the conservative identity gate, not demonstrated talent-number OCR failure. A shared OCR / phase-state cause is possible but cannot be chosen without examining the forced `diagnostics/Talent_verification_failed` screenshots. YunJin passed identity, then had a raw displayed Burst Lv3 inconsistent with her C3 +3 modifier; do not force-correct an unverified value.
+
+**Traveler is a separate reproducible identity-mapping problem:** the run loaded custom Traveler name `t_2the_homas77`, and the skipped-slot raw OCR read `cryo / t_2the_homas77` exactly (22:01:04). Thus the element was **not** misread as gryo/cryaq this time, and the user-defined name is present in the OCR string. It failed to resolve/validate a canonical playable Cryo Traveler despite those tokens. Check the recognized name and `CharacterMatchesElement` path and the `unrecognized_1.png` screen before changing anything. `farty_pants` is an intentionally excluded mannequin.
+
+**Next screenshot request:** one or two `Talent_verification_failed` crops/full-window screenshots from the seven header failures (ideally Kinich and Chiori), YunJin's `talents.png` and `talents_full_3840x2160.png` if available, and `unrecognized_1.png`. The text logs have already been provided: **do not ask user to search or resend them**. All new EXP-024 diagnostic logging remains not yet exercised live.
+
 ## Evidence-first priority: inspect EXP-023 archive before another live scan
 
 EXP-023's `Experiment 23.zip` (~426 MB) was uploaded, but the binary/archive-processing environment was unavailable at audit time. This limitation means the **cause of each zero is still unknown**. Extract and share a much smaller ZIP containing:
